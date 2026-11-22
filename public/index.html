@@ -12,6 +12,7 @@
   <nav id="nav">
     <button data-go="home">홈</button>
     <button data-go="gacha">뽑기</button>
+    <button data-go="bag">가방 <span class="nbadge hidden" id="bagBadge"></span></button>
     <button data-go="dex">내 동물</button>
     <button data-go="enhance">강화</button>
     <button data-go="fusion">합성</button>
@@ -65,10 +66,7 @@
           <button class="btn big" id="pull1">1회 뽑기 <small>🪙 <span id="cost1"></span></small></button>
           <button class="btn big" id="pull10">10회 뽑기 <small>🪙 <span id="cost10"></span></small></button>
         </div>
-        <div class="pity">
-          <div class="pity-label">천장까지 <b id="pityLeft"></b>회 — 도달하면 <b>동물 팩</b> (<span id="packDesc"></span>)</div>
-          <div class="bar"><i id="pityBar"></i></div>
-        </div>
+        <div class="pity" id="pityBars"></div>
       </div>
       <div class="panel">
         <h3>확률표</h3>
@@ -78,6 +76,17 @@
     </div>
     <h3 id="lastTitle" class="hidden">최근 뽑기 결과</h3>
     <div class="grid" id="lastPull"></div>
+  </section>
+
+  <!-- BAG -->
+  <section id="bag" class="screen">
+    <div class="panel">
+      <h3>🎒 가방</h3>
+      <p class="muted small">천장으로 받은 팩이 여기에 쌓여요. 열 개수를 정해서 한 번에 열 수 있어요.</p>
+      <div class="bag-list" id="bagList"></div>
+    </div>
+    <h3 id="bagLastTitle" class="hidden" style="margin-top:20px">최근 개봉 결과</h3>
+    <div class="grid" id="bagLast"></div>
   </section>
 
   <!-- DEX -->
@@ -107,9 +116,10 @@
         <button class="btn ghost" id="aiChange">바꾸기</button>
       </div>
       <div class="panel">
-        <h3>상대 난이도</h3>
-        <div id="aiLevels" class="levels"></div>
-        <p class="muted small">상대는 내 동물 글자 수를 기준으로 정해집니다. 지면 🪙<span id="aiLose"></span>.</p>
+        <div class="regions" id="aiRegions"></div>
+        <div class="region-head" id="aiRegionHead"></div>
+        <div class="stages" id="aiStages"></div>
+        <p class="muted small" id="aiRule"></p>
       </div>
     </div>
   </section>

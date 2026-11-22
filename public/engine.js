@@ -139,14 +139,45 @@
   ];
   const AI_LOSE_REWARD = 10;
 
+  // ---------- AI campaign: regions × stages ----------
+  // Each stage has a fixed opponent strength (letters incl. enhancement).
+  // Win reward = loser's letters × 10 (first clear pays ×2). Losing pays nothing.
+  const AI_REGIONS = [
+    { id: 'grass',  ko: '풀숲',   icon: '🌿', stages: [2, 4, 6, 8, 10],      groups: ['Insecta', 'Worms', 'Myriapoda', 'Arachnida', 'Amphibia'] },
+    { id: 'forest', ko: '숲',     icon: '🌲', stages: [11, 12, 13, 14, 15],  groups: ['Mammalia', 'Aves', 'Insecta', 'Myriapoda'] },
+    { id: 'river',  ko: '강가',   icon: '🏞️', stages: [16, 17, 18, 19, 20],  groups: ['Fish', 'Amphibia', 'Crustacea', 'Mollusca'] },
+    { id: 'swamp',  ko: '늪지대', icon: '🐊', stages: [21, 22, 23, 24, 25],  groups: ['Reptilia', 'Amphibia', 'Worms', 'Insecta'] },
+    { id: 'desert', ko: '사막',   icon: '🏜️', stages: [26, 27, 28, 29, 30],  groups: ['Reptilia', 'Arachnida', 'Mammalia', 'Insecta'] },
+    { id: 'reef',   ko: '산호초', icon: '🪸', stages: [31, 32, 33, 34, 35],  groups: ['Fish', 'Cnidaria', 'Echinodermata', 'Mollusca', 'Crustacea', 'Chondrichthyes'] },
+    { id: 'jungle', ko: '정글',   icon: '🌴', stages: [36, 37, 38, 39, 40],  groups: ['Mammalia', 'Aves', 'Reptilia', 'Amphibia', 'Insecta'] },
+    { id: 'abyss',  ko: '심해',   icon: '🌊', stages: [41, 42, 43, 44, 45],  groups: ['Chondrichthyes', 'Fish', 'Mollusca', 'Cnidaria', 'OtherInv', 'Crustacea'] },
+  ];
+  const AI_REWARD_PER_LETTER = 10, AI_FIRST_CLEAR_MULT = 2;
+  // Fixed opponents for every stage (deterministic, no repeats).
+  // Up to 35 letters: an animal with exactly that many letters from the region's groups.
+  // Beyond that (no such long names), a long-named animal is enhanced up to the target.
+  function aiCampaign(animals) {
+    const used = new Set();
+    return AI_REGIONS.map((R, ri) => R.stages.map((target, si) => {
+      const R0 = rng(1000 + ri * 10 + si);
+      const pickFrom = (groups, reuse) => {
+        const pool = animals.filter(a => !a.hidden && (reuse || !used.has(a.id)) && (!groups || groups.includes(a.cls)) && a.power <= target && a.power >= target - 10);
+        if (!pool.length) return null;
+        const best = Math.max(...pool.map(a => a.power));
+        const c = (target > 35 ? pool.filter(a => a.power >= target - 10) : pool.filter(a => a.power === best)).sort((x, y) => x.id - y.id);
+        const animal = c[Math.floor(R0() * c.length)];
+        used.add(animal.id);
+        return { animal, enh: target - animal.power, target };
+      };
+      return pickFrom(R.groups) || pickFrom(R.groups, true) || pickFrom(null);
+    }));
+  }
+
   // ---------- Gacha ----------
   const GACHA = {
     cost1: 100,
     cost10: 1000,
     decay: 0.85,      // weight per animal = decay ^ power  → long names are rare
-    pity: 50,         // every N pulls → Animal Pack
-    packSize: 3,
-    packMin: 20,      // pack animals have at least 20 letters
     dupRefund: 20,
   };
 
@@ -176,6 +207,15 @@
     return acc.map(v => v / T * 100);
   }
 
+  // Pity packs go to the bag. Each counter pays its own pack (pull 500 gives mythic + legend + basic).
+  const PACKS = {
+    mythic: { every: 500, min: 32, max: 99, ko: '신화 팩',   icon: '🔱', desc: 'MYTHIC 확정 (32글자 이상)' },
+    legend: { every: 100, min: 28, max: 31, ko: '전설 팩',   icon: '🌟', desc: 'LEGENDARY 확정 (28–31글자)' },
+    basic:  { every: 50,  min: 25, max: 99, ko: '동물 팩',   icon: '🎁', desc: '25글자 이상 1마리' },
+  };
+  const PACK_ORDER = ['mythic', 'legend', 'basic'];
+  function packsFor(pullNo) { return PACK_ORDER.filter(k => pullNo % PACKS[k].every === 0); }
+
   function glowOf(power) {
     if (power >= 25) return 'gold';
     if (power >= 20) return 'purple';
@@ -183,5 +223,5 @@
     return 'white';
   }
 
-  return { FUSION, fusionMin, ENHANCE, clampEnh, enhanceTry, TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
+  return { FUSION, fusionMin, ENHANCE, clampEnh, enhanceTry, TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, AI_REGIONS, AI_REWARD_PER_LETTER, AI_FIRST_CLEAR_MULT, aiCampaign, GACHA, PACKS, PACK_ORDER, packsFor, sampler, odds, glowOf };
 });

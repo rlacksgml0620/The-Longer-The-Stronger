@@ -349,3 +349,44 @@ table.enh-table td,table.enh-table th{padding:4px 8px;border-bottom:1px solid va
   .user-btn{max-width:96px;padding:5px 9px;font-size:13px}
 }
 @media(max-width:420px){ .brand .l1{display:none} }
+
+/* AI campaign */
+.ai-wrap{grid-template-columns:280px 1fr}
+@media(max-width:800px){.ai-wrap{grid-template-columns:1fr}}
+.regions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.region{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:7px 12px;border-radius:999px;cursor:pointer;display:flex;gap:6px;align-items:center;font-size:14px}
+.region.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:800}
+.region.locked{opacity:.4;cursor:not-allowed}
+.region .rd{color:var(--good);font-weight:900}
+.region.on .rd{color:#116b2c}
+.region-head{margin:4px 0 12px}
+.stages{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:10px}
+.stage-card{--tc:var(--line);background:var(--panel2);border:2px solid var(--tc);border-radius:12px;overflow:hidden;cursor:pointer;color:var(--text);text-align:left;padding:0;display:flex;flex-direction:column;font:inherit;transition:transform .12s}
+.stage-card:hover:not(:disabled){transform:translateY(-2px)}
+.stage-card.locked{opacity:.45;cursor:not-allowed;border-color:var(--line)}
+.stage-card.done{box-shadow:inset 0 0 0 1px #3ddc8455}
+.sc-no{font-weight:900;padding:6px 10px;background:#0006;font-size:14px}
+.sc-img{height:90px;background:#0005 center/cover no-repeat;display:flex;align-items:center;justify-content:center;font-size:40px}
+.sc-body{padding:8px 10px 10px;display:flex;flex-direction:column;gap:3px}
+.sc-name{font-weight:700;font-size:13px;line-height:1.25;min-height:2.5em}
+.sc-pow{font-size:12px;color:var(--muted)}.sc-pow b{color:var(--tc);font-size:16px}
+.sc-rw{color:var(--accent);font-weight:800}.sc-rw small{color:var(--muted);font-weight:500}
+.sc-tags{display:flex;gap:4px;flex-wrap:wrap}.sc-tags .tchip{font-size:11px;padding:1px 6px}
+
+/* bag & pity */
+.nbadge{display:inline-block;background:var(--bad);color:#fff;font-size:11px;font-weight:900;min-width:18px;padding:1px 5px;border-radius:999px;margin-left:2px}
+.pity{display:flex;flex-direction:column;gap:10px}
+.pity-row .pity-label{text-align:left}
+.pk-basic .bar i{background:linear-gradient(90deg,var(--g-blue),var(--g-gold))}
+.pk-legend .bar i{background:linear-gradient(90deg,#ff8c2e,#ffcc33)}
+.pk-mythic .bar i{background:linear-gradient(90deg,#ff3d6e,#b06bff)}
+.bag-list{display:flex;flex-direction:column;gap:10px}
+.bag-item{display:flex;gap:14px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;flex-wrap:wrap}
+.bag-item.empty{opacity:.5}
+.bag-item.pk-legend:not(.empty){border-color:#ff8c2e}
+.bag-item.pk-mythic:not(.empty){border-color:#ff3d6e;box-shadow:0 0 18px #ff3d6e44}
+.bi-icon{font-size:40px}
+.bi-info{flex:1;min-width:180px}
+.bi-n{color:var(--accent);font-weight:900;font-size:18px}
+.bi-open{display:flex;gap:6px;align-items:center}
+.bi-open input{width:72px}

@@ -19,9 +19,11 @@ const G = E.GACHA;
 const strongVs = c => Object.keys(E.TYPES[c] || {});
 const weakVs = c => Object.keys(E.TYPES).filter(k => E.TYPES[k][c]);
 const chip = (c, cls) => `<span class="tchip ${cls || ''}" title="${esc(CLS[c].en)}">${CLS[c].icon} ${CLS[c].ko}</span>`;
-const SAMPLER = E.sampler(A, G.decay);
-const S15 = E.sampler(A.filter(a => a.power >= 15), G.decay);
-const SPACK = E.sampler(A.filter(a => a.power >= G.packMin), G.decay);
+const LIVE = A.filter(a => !a.hidden);          // hidden = bad data, kept only for existing owners
+const SAMPLER = E.sampler(LIVE, G.decay);
+const S15 = E.sampler(LIVE.filter(a => a.power >= 15), G.decay);
+const PACK_SAMPLERS = {};
+for (const k of E.PACK_ORDER) PACK_SAMPLERS[k] = E.sampler(LIVE.filter(a => a.power >= E.PACKS[k].min && a.power <= E.PACKS[k].max), G.decay);
 const BY_POWER = {};
 A.forEach(a => (BY_POWER[a.power] ||= []).push(a));
 
@@ -100,7 +102,7 @@ const KEY = USER ? GUEST_KEY + ':' + USER : GUEST_KEY;
 let save = JSON.parse(localStorage.getItem(KEY) || 'null');
 function persist() { localStorage.setItem(KEY, JSON.stringify(save)); }
 if (!save) {
-  save = { coins: 1500, owned: {}, pity: 0, pulls: 0, main: null, nick: USER ? accounts[USER].nick : '', claimed: [], st: { aiW: 0, aiL: 0, mp: 0, mpWin: 0, earned: 0 } };
+  save = { coins: 1500, owned: {}, bag: {}, pulls: 0, main: null, nick: USER ? accounts[USER].nick : '', claimed: [], st: { aiW: 0, aiL: 0, mp: 0, mpWin: 0, earned: 0 } };
   // three starter animals
   for (let k = 0; k < 3; k++) { const a = SAMPLER.pick(Math.random()); save.owned[a.id] = (save.owned[a.id] || 0) + 1; }
   save.main = +Object.keys(save.owned).sort((x, y) => BY_ID.get(+y).power - BY_ID.get(+x).power)[0];
@@ -110,6 +112,8 @@ const owns = id => (save.owned[id] || 0) > 0;
 const ownedList = () => Object.keys(save.owned).map(Number).filter(owns).map(id => BY_ID.get(id)).filter(Boolean);
 const mainAnimal = () => BY_ID.get(save.main) || ownedList()[0];
 save.enh ||= {};
+save.bag ||= {};
+const bagTotal = () => E.PACK_ORDER.reduce((n, k) => n + (save.bag[k] || 0), 0);
 const enhOf = id => save.enh[id] || 0;
 const powText = (power, enh) => `${power}${enh ? `<em class="plus">+${enh}</em>` : ''}`;
 function emitPick() { const m = mainAnimal(); if (room && m) socket.emit('room:pick', { animalId: m.id, enh: enhOf(m.id) }); }
@@ -256,6 +260,7 @@ function refresh() {
   if (current === 'types') renderTypes();
   if (current === 'enhance') renderEnhance();
   if (current === 'fusion') renderFusion();
+  if (current === 'bag') renderBag();
 }
 
 // ---------------- home ----------------
@@ -312,7 +317,6 @@ let deb; $('q').addEventListener('input', () => { clearTimeout(deb); deb = setTi
 // ---------------- gacha ----------------
 $('cost1').textContent = fmt(G.cost1); $('cost10').textContent = fmt(G.cost10);
 $('dupRefund').textContent = G.dupRefund;
-$('packDesc').textContent = `${G.packMin}글자 이상 ${G.packSize}마리`;
 (function oddsTable() {
   const th = [25, 20, 10, 0];
   const p = E.odds(A, G.decay, th);
@@ -323,11 +327,14 @@ $('packDesc').textContent = `${G.packMin}글자 이상 ${G.packSize}마리`;
     ['white', '9글자 이하', p[3] - p[2]],
   ];
   $('oddsTable').innerHTML = rows.map(([g, l, v]) => `<tr><td><span class="dot" style="background:var(--g-${g})"></span>${l}</td><td>${v < 1 ? v.toFixed(2) : v.toFixed(1)}%</td></tr>`).join('')
-    + `<tr><td>천장 (${G.pity}회마다)</td><td>${G.packMin}글자+ ×${G.packSize}</td></tr>`;
+    + E.PACK_ORDER.slice().reverse().map(k => `<tr><td>${E.PACKS[k].icon} ${E.PACKS[k].ko} (${E.PACKS[k].every}회마다)</td><td>${E.PACKS[k].desc}</td></tr>`).join('');
 })();
 function renderGacha() {
-  $('pityLeft').textContent = G.pity - save.pity;
-  $('pityBar').style.width = (save.pity / G.pity * 100) + '%';
+  $('pityBars').innerHTML = E.PACK_ORDER.slice().reverse().map(k => {
+    const P = E.PACKS[k], done = save.pulls % P.every, left = P.every - done;
+    return `<div class="pity-row pk-${k}"><div class="pity-label">${P.icon} <b>${P.ko}</b>까지 <b>${left}</b>회 <span class="muted small">(${P.desc})</span></div>
+      <div class="bar"><i style="width:${done / P.every * 100}%"></i></div></div>`;
+  }).join('') + `<div class="muted small" style="text-align:center">총 뽑기 ${fmt(save.pulls)}회 · 팩은 🎒 가방으로 들어가요</div>`;
   $('pull1').disabled = save.coins < G.cost1;
   $('pull10').disabled = save.coins < G.cost10;
 }
@@ -342,15 +349,12 @@ async function doPull(n) {
   if (save.coins < cost || revealing) return;
   addCoins(-cost);
   const results = roll(n);
-  // pity
-  const queue = [];
+  // pity: packs go to the bag
+  const queue = [], gotPacks = [];
   for (const r of results) {
     queue.push(r);
-    save.pity++; save.pulls++;
-    if (save.pity >= G.pity) {
-      save.pity = 0;
-      for (let k = 0; k < G.packSize; k++) queue.push({ a: SPACK.pick(Math.random()), pack: true, packIdx: k });
-    }
+    save.pulls++;
+    for (const pk of E.packsFor(save.pulls)) { save.bag[pk] = (save.bag[pk] || 0) + 1; gotPacks.push(pk); }
   }
   // apply to collection
   let refund = 0;
@@ -362,6 +366,7 @@ async function doPull(n) {
   persist();
   await revealSequence(queue);
   if (refund) addCoins(refund, '중복 환급');
+  if (gotPacks.length) { toast(gotPacks.map(k => `${E.PACKS[k].icon} ${E.PACKS[k].ko}`).join(', ') + ' 획득! 🎒 가방에서 열 수 있어요'); renderBagBadge(); }
   $('lastTitle').classList.remove('hidden');
   $('lastPull').innerHTML = queue.map(r => cardHTML(r.a, { isNew: r.isNew, hideMain: true })).join('');
   renderGacha();
@@ -399,7 +404,7 @@ async function revealOne(r) {
   st.className = 'stage ' + glow;
   $('rPack').classList.toggle('hidden', !r.pack && !r.fusion);
   if (r.fusion) $('rPack').textContent = `🧬 합성 결과! (${r.fusion}글자 이상 보장)`;
-  if (r.pack) $('rPack').textContent = `🎁 동물 팩! (${r.packIdx + 1}/${G.packSize})`;
+  if (r.pack) $('rPack').textContent = `${E.PACKS[r.pack].icon} ${E.PACKS[r.pack].ko} 개봉! (${r.packIdx + 1}/${r.packTotal})`;
   $('rClass').className = 'r-class'; $('rClass').innerHTML = `<span class="ic">${c.icon}</span><span class="t">${c.ko}</span><span class="e">${c.en.toUpperCase()}</span>`;
   $('rPower').className = 'r-power'; $('rPower').innerHTML = '';
   $('rName').innerHTML = '';
@@ -595,12 +600,50 @@ $('enhGo').onclick = async () => {
   setTimeout(() => { if (!enhBusy) anv.className = 'enh-anvil'; }, 1500);
 };
 
+// ---------------- bag (pity packs) ----------------
+function renderBagBadge() { const n = bagTotal(); $('bagBadge').textContent = n; $('bagBadge').classList.toggle('hidden', !n); }
+function renderBag() {
+  renderBagBadge();
+  $('bagList').innerHTML = E.PACK_ORDER.map(k => {
+    const P = E.PACKS[k], n = save.bag[k] || 0;
+    return `<div class="bag-item pk-${k} ${n ? '' : 'empty'}">
+      <div class="bi-icon">${P.icon}</div>
+      <div class="bi-info"><b>${P.ko}</b> <span class="bi-n">×${n}</span><div class="muted small">${P.desc} · ${P.every}회 뽑기마다</div></div>
+      <div class="bi-open">${n ? `<input type="number" min="1" max="${n}" value="${n}" data-cnt="${k}"> <button class="btn" data-openpk="${k}">열기</button> <button class="btn ghost" data-openall="${k}">모두</button>` : '<span class="muted small">없음</span>'}</div>
+    </div>`;
+  }).join('');
+}
+$('bagList').onclick = e => {
+  const b = e.target.closest('[data-openpk],[data-openall]'); if (!b || revealing) return;
+  const k = b.dataset.openpk || b.dataset.openall, have = save.bag[k] || 0;
+  const n = b.dataset.openall ? have : Math.max(1, Math.min(have, Math.floor(+document.querySelector(`[data-cnt="${k}"]`).value || 1)));
+  if (n > 0) openPacks(k, n);
+};
+async function openPacks(k, n) {
+  save.bag[k] -= n; if (save.bag[k] <= 0) delete save.bag[k];
+  const queue = [];
+  let refund = 0;
+  for (let i = 0; i < n; i++) {
+    const a = PACK_SAMPLERS[k].pick(Math.random());
+    const isNew = !owns(a.id);
+    save.owned[a.id] = (save.owned[a.id] || 0) + 1;
+    if (!isNew) refund += G.dupRefund;
+    queue.push({ a, isNew, pack: k, packIdx: i, packTotal: n });
+  }
+  persist(); renderBag();
+  await revealSequence(queue);
+  if (refund) addCoins(refund, '중복 환급');
+  $('bagLastTitle').classList.remove('hidden');
+  $('bagLast').innerHTML = queue.map(r => cardHTML(r.a, { isNew: r.isNew, hideMain: true })).join('');
+  renderBag();
+}
+
 // ---------------- fusion ----------------
 const FU = E.FUSION;
 let fusGroup = null, fusSel = []; // fusSel: animal ids (one entry per copy)
 $('fusRule').textContent = `같은 분류 동물 ${FU.count}장을 합성하면 그 분류의 동물 1마리가 나와요. 결과는 재료 평균 글자 수 × ${FU.mult} 이상 (올림). 출전 동물의 마지막 1장은 재료로 쓸 수 없고, 마지막 1장을 쓰면 그 동물의 강화도 사라져요.`;
 const GROUP_MAX = {};
-A.forEach(a => { GROUP_MAX[a.cls] = Math.max(GROUP_MAX[a.cls] || 0, a.power); });
+LIVE.forEach(a => { GROUP_MAX[a.cls] = Math.max(GROUP_MAX[a.cls] || 0, a.power); });
 const usable = id => (save.owned[id] || 0) - (save.main === id ? 1 : 0); // copies allowed as material
 function groupCopies(cls) { return ownedList().filter(a => a.cls === cls).reduce((s, a) => s + Math.max(0, usable(a.id)), 0); }
 function renderFusion() {
@@ -623,7 +666,7 @@ function renderFusion() {
   if (fusSel.length) {
     const avg = fusSel.reduce((s, id) => s + BY_ID.get(id).power, 0) / fusSel.length;
     const min = Math.min(E.fusionMin(avg), GROUP_MAX[fusGroup]);
-    const pool = A.filter(a => a.cls === fusGroup && a.power >= min).length;
+    const pool = LIVE.filter(a => a.cls === fusGroup && a.power >= min).length;
     $('fusPreview').innerHTML = `재료 평균 <b>${avg.toFixed(1)}</b>글자 → 결과 <b class="plus">${min}글자 이상</b> ${CLS[fusGroup].icon} ${CLS[fusGroup].ko} <span class="muted small">(후보 ${fmt(pool)}종)</span>` + (fusSel.length < FU.count ? ` <span class="muted small">· ${FU.count - fusSel.length}장 더 필요</span>` : '');
   } else $('fusPreview').innerHTML = `<span class="muted">재료를 ${FU.count}장 골라주세요.</span>`;
   $('fusGo').disabled = fusSel.length !== FU.count || revealing;
@@ -661,7 +704,7 @@ $('fusGo').onclick = async () => {
     save.owned[id]--;
     if (save.owned[id] <= 0) { delete save.owned[id]; delete save.enh[id]; }
   }
-  const pick = E.sampler(A.filter(a => a.cls === cls && a.power >= min), G.decay).pick(Math.random());
+  const pick = E.sampler(LIVE.filter(a => a.cls === cls && a.power >= min), G.decay).pick(Math.random());
   const isNew = !owns(pick.id);
   save.owned[pick.id] = (save.owned[pick.id] || 0) + 1;
   if (!BY_ID.get(save.main) || !owns(save.main)) save.main = pick.id;
@@ -703,40 +746,74 @@ function renderTypes() {
   }
 }
 
-// ---------------- AI battle ----------------
-$('aiLose').textContent = E.AI_LOSE_REWARD;
+// ---------------- AI campaign (regions × stages) ----------------
+const REG = E.AI_REGIONS, CAMP = E.aiCampaign(A);
+const NST = REG[0].stages.length;
+save.ai ||= { clears: {} };                     // clears[k] = times stage k was won (k = region*5 + stage)
+const stageKey = (ri, si) => ri * NST + si;
+const cleared = (ri, si) => (save.ai.clears[stageKey(ri, si)] || 0) > 0;
+const unlocked = (ri, si) => stageKey(ri, si) === 0 || (save.ai.clears[stageKey(ri, si) - 1] || 0) > 0;
+const regionOpen = ri => unlocked(ri, 0);
+const stageReward = (ri, si) => CAMP[ri][si].target * E.AI_REWARD_PER_LETTER;
+let aiRegion = null;
+$('aiRule').innerHTML = `이기면 <b>진 동물의 글자 수(강화 포함) × ${E.AI_REWARD_PER_LETTER}</b> 코인. 첫 클리어는 ×${E.AI_FIRST_CLEAR_MULT}. 지면 보상 없음. 스테이지를 깨면 다음 스테이지가 열려요. 상대는 고정이니 상성을 보고 출전 동물을 골라보세요.`;
 $('aiChange').onclick = async () => { const id = await pickAnimal(); if (id != null) setMain(id); };
 function renderAI() {
   const m = mainAnimal();
   $('aiMine').innerHTML = m ? cardHTML(m) : '<p class="muted">동물이 없어요.</p>';
-  $('aiLevels').innerHTML = E.AI_LEVELS.map(l => {
-    const mp = m ? m.power + enhOf(m.id) : 0, lo = m ? Math.max(MINP, mp + l.diff[0]) : 0, hi = m ? Math.min(MAXP, mp + l.diff[1]) : 0;
-    return `<button class="level" data-lv="${l.id}"><b>${l.ko}</b><span class="muted small">상대 ${lo}–${hi}글자</span><br><span class="rw">승리 🪙${l.reward}</span></button>`;
+  if (aiRegion == null) { aiRegion = 0; REG.forEach((_, ri) => { if (regionOpen(ri)) aiRegion = ri; }); }
+  $('aiRegions').innerHTML = REG.map((R, ri) => {
+    const open = regionOpen(ri), done = R.stages.every((_, si) => cleared(ri, si));
+    return `<button class="region ${ri === aiRegion ? 'on' : ''} ${open ? '' : 'locked'}" data-region="${ri}" ${open ? '' : 'disabled'}>
+      <span class="ri">${open ? R.icon : '🔒'}</span><span>${ri + 1}. ${R.ko}</span>${done ? '<span class="rd">✔</span>' : ''}</button>`;
+  }).join('');
+  const R = REG[aiRegion];
+  $('aiRegionHead').innerHTML = `<b>${R.icon} ${aiRegion + 1}. ${R.ko}</b> <span class="muted small">출몰: ${R.groups.map(g => CLS[g].icon + ' ' + CLS[g].ko).join(', ')}</span>`;
+  $('aiStages').innerHTML = R.stages.map((_, si) => {
+    const o = CAMP[aiRegion][si], a = o.animal, t = tierOf(a.power), open = unlocked(aiRegion, si), done = cleared(aiRegion, si);
+    const rw = stageReward(aiRegion, si);
+    const mu = m ? E.typeMult(m.cls, a.cls) : 1, mu2 = m ? E.typeMult(a.cls, m.cls) : 1;
+    const muTag = mu > 1 ? '<span class="tchip up">▲ 상성 유리</span>' : mu2 > 1 ? '<span class="tchip down">▼ 상성 불리</span>' : '';
+    const mine = m ? m.power + enhOf(m.id) : 0;
+    const diff = mine - o.target;
+    return `<button class="stage-card ${open ? '' : 'locked'} ${done ? 'done' : ''}" data-stage="${si}" ${open ? '' : 'disabled'} style="--tc:${t.color}">
+      <div class="sc-no">${aiRegion + 1}-${si + 1}${done ? ' ✅' : open ? '' : ' 🔒'}</div>
+      <div class="sc-img" ${a.image && open ? `style="background-image:url('${img(a.image, 240)}')"` : ''}>${a.image && open ? '' : CLS[a.cls].icon}</div>
+      <div class="sc-body">
+        <div class="sc-name">${open ? esc(a.name) : '???'}</div>
+        <div class="sc-pow"><b>${powText(a.power, o.enh)}</b>글자 · ${CLS[a.cls].icon} ${CLS[a.cls].ko}</div>
+        <div class="sc-rw">🪙${fmt(rw)}${done ? '' : ` <small>첫 클리어 🪙${fmt(rw * E.AI_FIRST_CLEAR_MULT)}</small>`}</div>
+        <div class="sc-tags">${open && m ? `<span class="tchip ${diff >= 0 ? 'up' : 'down'}">내 동물 ${diff >= 0 ? '+' : ''}${diff}글자</span>` : ''} ${open ? muTag : ''}</div>
+      </div></button>`;
   }).join('');
 }
-$('aiLevels').addEventListener('click', async e => {
-  const b = e.target.closest('[data-lv]'); if (!b) return;
-  const lv = E.AI_LEVELS.find(l => l.id === b.dataset.lv); const m = mainAnimal(); if (!m) return;
-  const mp = m.power + enhOf(m.id);
-  let p = mp + lv.diff[0] + Math.floor(Math.random() * (lv.diff[1] - lv.diff[0] + 1));
-  p = Math.max(MINP, Math.min(MAXP, p));
-  while (!BY_POWER[p]) p += p > mp ? -1 : 1;
-  const pool = BY_POWER[p].filter(a => a.id !== m.id);
-  const foe = (pool.length ? pool : BY_POWER[p])[Math.floor(Math.random() * (pool.length || BY_POWER[p].length))];
-  const res = E.simulate([{ owner: { id: 'me', name: myNick() }, animal: m, enh: enhOf(m.id) }, { owner: { id: 'ai', name: 'AI ' + lv.ko }, animal: foe }]);
+$('aiRegions').onclick = e => { const b = e.target.closest('[data-region]'); if (!b || b.disabled) return; aiRegion = +b.dataset.region; renderAI(); };
+$('aiStages').onclick = e => { const b = e.target.closest('[data-stage]'); if (!b || b.disabled) return; fightStage(aiRegion, +b.dataset.stage); };
+async function fightStage(ri, si) {
+  const m = mainAnimal(); if (!m || !unlocked(ri, si)) return;
+  const R = REG[ri], o = CAMP[ri][si];
+  const res = E.simulate([
+    { owner: { id: 'me', name: myNick() }, animal: m, enh: enhOf(m.id) },
+    { owner: { id: 'ai', name: `${R.icon} ${R.ko} ${ri + 1}-${si + 1}` }, animal: o.animal, enh: o.enh },
+  ]);
   const win = res.fighters[res.placements[0]].owner.id === 'me';
-  const reward = win ? lv.reward : E.AI_LOSE_REWARD;
+  const first = win && !cleared(ri, si);
+  const base = stageReward(ri, si), reward = win ? base * (first ? E.AI_FIRST_CLEAR_MULT : 1) : 0;
+  const k = stageKey(ri, si);
+  const next = k + 1 < REG.length * NST ? [Math.floor((k + 1) / NST), (k + 1) % NST] : null;
   const act = await playBattle(res, {
-    title: `AI 배틀 · ${lv.ko}`, meId: 'me',
+    title: `AI 배틀 · ${R.icon} ${R.ko} ${ri + 1}-${si + 1}`, meId: 'me',
     resultHTML: () => `<h2>${win ? '🏆 승리!' : '패배…'}</h2>${placesHTML(res, null, 'me')}
-      <p>보상 <b style="color:var(--accent)">🪙${reward}</b></p>
-      <button class="btn big" data-bact="again">다시 도전</button> <button class="btn big ghost" data-bact="close">닫기</button>`,
+      ${win ? `<p>보상 <b style="color:var(--accent)">🪙${fmt(reward)}</b>${first ? ` <span class="muted small">(첫 클리어 ×${E.AI_FIRST_CLEAR_MULT})</span>` : ''}<br><span class="muted small">진 동물 ${o.target}글자 × ${E.AI_REWARD_PER_LETTER}</span></p>` : '<p class="muted">보상 없음 — 상성이나 강화를 활용해 보세요</p>'}
+      ${win && next ? '<button class="btn big" data-bact="next">다음 스테이지 ▶</button> ' : ''}<button class="btn big ${win && next ? 'ghost' : ''}" data-bact="again">다시 도전</button> <button class="btn big ghost" data-bact="close">닫기</button>`,
   });
-  win ? save.st.aiW++ : save.st.aiL++;
-  addCoins(reward, win ? '승리 보상' : '참가 보상');
+  if (win) { save.st.aiW++; save.ai.clears[k] = (save.ai.clears[k] || 0) + 1; addCoins(reward, first ? '첫 클리어 보상' : '승리 보상'); }
+  else { save.st.aiL++; persist(); }
+  if (first && next && next[1] === 0) toast(`🗺️ 새 지역 개방: ${REG[next[0]].icon} ${REG[next[0]].ko}`);
+  if (act === 'next' && next) { aiRegion = next[0]; renderAI(); return fightStage(next[0], next[1]); }
   renderAI();
-  if (act === 'again') b.click();
-});
+  if (act === 'again') fightStage(ri, si);
+}
 
 // ---------------- multiplayer ----------------
 const socket = window.io ? window.io() : null;
@@ -811,5 +888,6 @@ if (socket) {
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('modal').classList.remove('on'); } });
 renderUser();
+renderBagBadge();
 show('home');
 })();

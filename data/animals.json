@@ -296,12 +296,12 @@
   "id": 25
  },
  {
-  "name": "Hyperaspis Weisei Iablokoff-Khnzorian",
-  "power": 34,
-  "sci": "Hyperaspis weisei",
+  "name": "Four-streaked Lady Beetle",
+  "power": 22,
+  "sci": "Hyperaspis quadrivittata",
   "genus": "Hyperaspis",
   "cls": "Insecta",
-  "qid": "Q135658725",
+  "qid": "Q14930532",
   "genusNamed": 26,
   "id": 26
  },
@@ -464,12 +464,12 @@
   "id": 40
  },
  {
-  "name": "Hyphessobrycon Ellisae Bragança Et Al",
-  "power": 33,
-  "sci": "Hyphessobrycon ellisae",
+  "name": "Black Phantom Tetra",
+  "power": 17,
+  "sci": "Hyphessobrycon megalopterus",
   "genus": "Hyphessobrycon",
   "cls": "Fish",
-  "qid": "Q23072946",
+  "qid": "Q912897",
   "genusNamed": 9,
   "family": "Characidae",
   "order": "Characiformes",
@@ -1279,12 +1279,12 @@
   "id": 111
  },
  {
-  "name": "Platycephalus Grandisquamis Weber",
-  "power": 31,
-  "sci": "Platycephalus grandisquamis",
+  "name": "Bartail Flathead",
+  "power": 15,
+  "sci": "Platycephalus indicus",
   "genus": "Platycephalus",
   "cls": "Fish",
-  "qid": "Q21361697",
+  "qid": "Q1020669",
   "genusNamed": 3,
   "family": "Platycephalidae",
   "order": "Scorpaeniformes",
@@ -1622,14 +1622,13 @@
   "id": 140
  },
  {
-  "name": "Bombus BBombus Bahiensisahiensis",
-  "power": 30,
-  "sci": "Bombus bahiensis",
+  "name": "Indiscriminate Cuckoo Bumble Bee",
+  "power": 29,
+  "sci": "Bombus insularis",
   "genus": "Bombus",
   "cls": "Insecta",
-  "qid": "Q104421851",
+  "qid": "Q4936175",
   "genusNamed": 63,
-  "image": "Holótipo de Bombus bahiensis sp. n..tiff",
   "id": 141
  },
  {
@@ -3455,7 +3454,8 @@
   "cls": "Insecta",
   "qid": "Q21349898",
   "genusNamed": 1,
-  "id": 296
+  "id": 296,
+  "hidden": true
  },
  {
   "name": "Serra da Bocaina Snouted Treefrog",
@@ -4004,7 +4004,8 @@
   "genusNamed": 1,
   "family": "Xestoleberididae",
   "order": "Podocopida",
-  "id": 343
+  "id": 343,
+  "hidden": true
  },
  {
   "name": "Yellow Star Thistle Flower Weevil",
@@ -4503,12 +4504,12 @@
   "id": 385
  },
  {
-  "name": "Coccinella Pantherina Linnaeus",
-  "power": 28,
-  "sci": "Coccinella pantherina",
+  "name": "Three-banded Lady Beetle",
+  "power": 21,
+  "sci": "Coccinella trifasciata",
   "genus": "Coccinella",
   "cls": "Insecta",
-  "qid": "Q21362462",
+  "qid": "Q1767216",
   "genusNamed": 11,
   "id": 386
  },
@@ -6836,7 +6837,8 @@
   "qid": "Q16938830",
   "genusNamed": 1,
   "family": "Callidulidae",
-  "id": 584
+  "id": 584,
+  "hidden": true
  },
  {
   "name": "Günther's Tropical Ground Snake",
@@ -7942,7 +7944,8 @@
   "cls": "Insecta",
   "qid": "Q21365729",
   "genusNamed": 1,
-  "id": 678
+  "id": 678,
+  "hidden": true
  },
  {
   "name": "Stinging Rose Caterpillar Moth",
@@ -8521,12 +8524,12 @@
   "id": 727
  },
  {
-  "name": "Bidessus Plicatus Zimmermann",
-  "power": 26,
-  "sci": "Bidessus plicatus",
+  "name": "Diving Beetle",
+  "power": 12,
+  "sci": "Bidessus minutissimus",
   "genus": "Bidessus",
   "cls": "Insecta",
-  "qid": "Q21350156",
+  "qid": "Q2052080",
   "genusNamed": 2,
   "id": 728
  },
@@ -8912,12 +8915,12 @@
   "id": 760
  },
  {
-  "name": "Cerithium Chantrei Dumortier",
-  "power": 26,
-  "sci": "Cerithium chantrei",
+  "name": "Coral Cerith",
+  "power": 11,
+  "sci": "Cerithium coralium",
   "genus": "Cerithium",
   "cls": "Mollusca",
-  "qid": "Q69968220",
+  "qid": "Q5064442",
   "genusNamed": 2,
   "id": 761
  },
@@ -9872,7 +9875,8 @@
   "cls": "Insecta",
   "qid": "Q21359258",
   "genusNamed": 1,
-  "id": 841
+  "id": 841,
+  "hidden": true
  },
  {
   "name": "Lesser Yellownape Woodpecker",
@@ -12774,7 +12778,7 @@
   "id": 1084
  },
  {
-  "name": "GIULIANI'S DUNE SCARAB BEETLE",
+  "name": "Giuliani's Dune Scarab Beetle",
   "power": 25,
   "sci": "Pseudocotalpa giulianii",
   "genus": "Pseudocotalpa",
@@ -31050,7 +31054,8 @@
   "cls": "Insecta",
   "qid": "Q122187961",
   "genusNamed": 2,
-  "id": 2625
+  "id": 2625,
+  "hidden": true
  },
  {
   "name": "Central Asian Salamander",
@@ -35986,7 +35991,8 @@
   "cls": "Insecta",
   "qid": "Q21349697",
   "genusNamed": 1,
-  "id": 3040
+  "id": 3040,
+  "hidden": true
  },
  {
   "name": "Sealed Pouch Fairy Shrimp",
@@ -40125,7 +40131,8 @@
   "cls": "Insecta",
   "qid": "Q21364714",
   "genusNamed": 2,
-  "id": 3388
+  "id": 3388,
+  "hidden": true
  },
  {
   "name": "Cape Verde Spiny Lobster",
@@ -51502,7 +51509,8 @@
   "cls": "Insecta",
   "qid": "Q21364868",
   "genusNamed": 1,
-  "id": 4340
+  "id": 4340,
+  "hidden": true
  },
  {
   "name": "Diphtherocome Pulchra",
@@ -53346,7 +53354,7 @@
   "id": 4492
  },
  {
-  "name": "Kirchner's VIscacha Rat",
+  "name": "Kirchner's Viscacha Rat",
   "power": 20,
   "sci": "Tympanoctomys kirchnerorum",
   "genus": "Tympanoctomys",
@@ -55617,7 +55625,8 @@
   "qid": "Q21364618",
   "genusNamed": 1,
   "family": "Calliphoridae",
-  "id": 4682
+  "id": 4682,
+  "hidden": true
  },
  {
   "name": "Prickly Girdled Lizard",
@@ -84131,7 +84140,8 @@
   "cls": "Insecta",
   "qid": "Q21360230",
   "genusNamed": 1,
-  "id": 7058
+  "id": 7058,
+  "hidden": true
  },
  {
   "name": "Antillean Cave Rail",
@@ -88143,7 +88153,8 @@
   "cls": "Insecta",
   "qid": "Q21366734",
   "genusNamed": 1,
-  "id": 7389
+  "id": 7389,
+  "hidden": true
  },
  {
   "name": "Guatemalan Cracker",
@@ -90169,7 +90180,7 @@
   "id": 7558
  },
  {
-  "name": "NIgel's One-jawed Eel",
+  "name": "Nigel's One-jawed Eel",
   "power": 17,
   "sci": "Monognathus nigeli",
   "genus": "Monognathus",
@@ -128802,7 +128813,8 @@
   "qid": "Q27440247",
   "genusNamed": 1,
   "order": "Trombidiformes",
-  "id": 10751
+  "id": 10751,
+  "hidden": true
  },
  {
   "name": "Uhler's Stink Bug",
@@ -147619,7 +147631,7 @@
   "id": 12299
  },
  {
-  "name": "MORNINGSTAR",
+  "name": "Morningstar",
   "power": 11,
   "sci": "Euspilotus strobeli",
   "genus": "Euspilotus",
@@ -160343,7 +160355,7 @@
   "id": 13335
  },
  {
-  "name": "DRUKPAS",
+  "name": "Drukpas",
   "power": 7,
   "sci": "Claassenia drukpa",
   "genus": "Claassenia",
