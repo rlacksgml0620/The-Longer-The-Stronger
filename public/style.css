@@ -240,3 +240,28 @@ table.odds td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:100;pointer-events:none}
 #toast.on{opacity:1}
+
+/* type matchups */
+.tchip{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
+.tchip.up{border-color:#3ddc8466;color:#7ef0a8}
+.tchip.down{border-color:#ff5a6a66;color:#ff9aa4}
+dd .tchip{margin:0 4px 4px 0}
+.up{color:#7ef0a8}.down{color:#ff9aa4}
+.type-tabs{display:inline-flex;margin:4px 0 14px}
+.type-list{display:flex;flex-direction:column;gap:10px}
+.type-row{display:grid;grid-template-columns:170px 1fr 1fr;gap:14px;background:var(--panel2);border-radius:12px;padding:12px 14px;align-items:start}
+@media(max-width:800px){.type-row{grid-template-columns:1fr}}
+.type-me{font-size:18px}.type-me small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.type-col .lbl{font-size:12px;font-weight:800;margin-bottom:6px}
+.type-col .tr{display:flex;gap:8px;align-items:center;margin-bottom:5px;flex-wrap:wrap}
+.type-grid-wrap{overflow:auto}
+table.type-grid{border-collapse:collapse;font-size:13px}
+table.type-grid th,table.type-grid td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+table.type-grid th.rowh{text-align:left;white-space:nowrap;font-weight:600}
+table.type-grid th.corner{font-size:11px;color:var(--muted);font-weight:500}
+table.type-grid td.up{background:#3ddc8422;color:#7ef0a8;font-weight:900;cursor:help}
+table.type-grid td.down{background:#ff5a6a22;color:#ff9aa4;font-weight:900;cursor:help}
+.fighter .fcls{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.fighter .fcls .tchip{font-size:11px;padding:1px 6px}
+.dmg.eff{font-size:16px;top:58%;animation-duration:1.2s}
+.dmg.eff.up{color:#7ef0a8}.dmg.eff.down{color:#ff9aa4}

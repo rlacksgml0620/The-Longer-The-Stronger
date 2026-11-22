@@ -16,7 +16,7 @@ const BY_ID = new Map(DB.animals.map(a => [a.id, a]));
 
 const app = express();
 app.use(compression());
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+app.use(express.static(path.join(__dirname, 'public'))); // ETag revalidation so updates show up right after deploy
 app.get('/healthz', (_, res) => res.send('ok'));
 const server = http.createServer(app);
 const io = new Server(server);

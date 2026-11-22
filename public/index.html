@@ -15,6 +15,7 @@
     <button data-go="dex">내 동물</button>
     <button data-go="ai">AI 배틀</button>
     <button data-go="multi">멀티플레이</button>
+    <button data-go="types">상성표</button>
   </nav>
   <div class="wallet"><span class="coin">🪙</span> <b id="coins">0</b></div>
 </header>
@@ -100,6 +101,17 @@
         <div id="aiLevels" class="levels"></div>
         <p class="muted small">상대는 내 동물 글자 수를 기준으로 정해집니다. 지면 🪙<span id="aiLose"></span>.</p>
       </div>
+    </div>
+  </section>
+
+  <!-- TYPES -->
+  <section id="types" class="screen">
+    <div class="panel">
+      <h3>동물 상성표</h3>
+      <p class="muted small" id="typeRule"></p>
+      <div class="type-tabs seg" id="typeView"><button data-v="list" class="on">분류별</button><button data-v="grid">전체 표</button></div>
+      <div id="typeList" class="type-list"></div>
+      <div id="typeGrid" class="type-grid-wrap hidden"></div>
     </div>
   </section>
 

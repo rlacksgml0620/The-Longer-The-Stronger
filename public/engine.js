@@ -29,6 +29,34 @@
     };
   }
 
+  // ---------- Type matchups (by animal group) ----------
+  // attacker group → { defender group: reason }
+  const TYPES = {
+    Mammalia:       { Aves: '고양이가 새를 사냥', Fish: '곰이 연어를 낚아챔', Echinodermata: '해달이 성게를 깨 먹음' },
+    Aves:           { Insecta: '새가 벌레를 쪼아 먹음', Arachnida: '새가 거미를 낚아챔', Reptilia: '뱀잡이수리가 뱀을 사냥' },
+    Reptilia:       { Mammalia: '뱀이 쥐를 통째로 삼킴', Amphibia: '뱀이 개구리를 삼킴', Myriapoda: '도마뱀이 지네를 사냥' },
+    Amphibia:       { Insecta: '개구리 혀로 곤충 포획', Worms: '두꺼비가 지렁이를 삼킴', OtherArthro: '도롱뇽이 톡토기를 사냥' },
+    Fish:           { Crustacea: '물고기가 새우를 삼킴', Worms: '물고기가 갯지렁이를 먹음', Amphibia: '물고기가 올챙이를 먹음' },
+    Chondrichthyes: { Fish: '상어가 물고기 떼를 습격', Mollusca: '상어가 오징어를 사냥', Reptilia: '뱀상어가 바다거북을 깨뭄' },
+    Insecta:        { Mammalia: '모기·벌의 공격', Mollusca: '반딧불이 유충이 달팽이를 사냥', Myriapoda: '개미 군단이 노래기를 제압' },
+    Arachnida:      { Insecta: '거미줄에 곤충이 걸림', OtherArthro: '거미가 톡토기를 사냥' },
+    Crustacea:      { Echinodermata: '게가 불가사리를 뜯어 먹음', OtherInv: '게가 멍게·해면을 먹음' },
+    Myriapoda:      { Arachnida: '지네가 거미를 사냥', Worms: '지네가 지렁이를 사냥', OtherArthro: '지네가 작은 절지동물을 사냥' },
+    OtherArthro:    { Cnidaria: '투구게가 해파리 폴립을 먹음', OtherInv: '곰벌레의 압도적 생존력' },
+    Mollusca:       { Crustacea: '문어가 게를 사냥', Fish: '오징어가 물고기를 낚아챔' },
+    Cnidaria:       { Crustacea: '해파리 촉수에 갑각류가 걸림', Chondrichthyes: '해파리 독침이 상어를 쏨' },
+    Echinodermata:  { Mollusca: '불가사리가 조개를 벌려 먹음', Cnidaria: '가시관불가사리가 산호를 먹어 치움' },
+    Worms:          { Mammalia: '기생충 감염', Aves: '기생충 감염', Chondrichthyes: '기생충 감염' },
+    OtherInv:       { Echinodermata: '해면의 독이 불가사리를 막음', Cnidaria: '빗해파리가 해파리 유생을 먹음', Amphibia: '멍게의 독성' },
+  };
+  const TYPE_UP = 1.12, TYPE_DOWN = 0.9; // advantage ≈ +3 letters
+  // multiplier when `att` group hits `def` group
+  function typeMult(att, def) {
+    if (TYPES[att] && TYPES[att][def]) return TYPE_UP;
+    if (TYPES[def] && TYPES[def][att]) return TYPE_DOWN;
+    return 1;
+  }
+
   // ---------- Battle (free-for-all, 2–4 fighters) ----------
   // fighters: [{ owner, animal: {name, power, ...} }]
   // returns { seed, fighters: [...with stats], log: [...events], placements: [fighterIndex by place] }
@@ -54,11 +82,14 @@
         const d = foes[Math.floor(R() * foes.length)];
         if (R() < d.dodge) { log.push({ t: 'atk', a: a.i, d: d.i, dmg: 0, miss: true, hp: d.hp }); continue; }
         const crit = R() < a.crit;
-        let dmg = a.atk * (0.75 + R() * 0.5);
+        const tm = typeMult(a.animal.cls, d.animal.cls);
+        let dmg = a.atk * (0.75 + R() * 0.5) * tm;
         if (crit) dmg *= 1.8;
         dmg = Math.max(1, Math.round(dmg));
         d.hp = Math.max(0, d.hp - dmg);
-        log.push({ t: 'atk', a: a.i, d: d.i, dmg, crit, hp: d.hp });
+        const ev = { t: 'atk', a: a.i, d: d.i, dmg, crit, hp: d.hp };
+        if (tm > 1) ev.eff = 'up'; else if (tm < 1) ev.eff = 'down';
+        log.push(ev);
         if (d.hp <= 0) { d.alive = false; koOrder.push(d.i); log.push({ t: 'ko', i: d.i, by: a.i }); }
       }
     }
@@ -128,5 +159,5 @@
     return 'white';
   }
 
-  return { rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
+  return { TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
 });

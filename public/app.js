@@ -16,6 +16,9 @@ const tierOf = p => TIERS.find(t => p >= t.min);
 const MAXP = Math.max(...A.map(a => a.power)), MINP = Math.min(...A.map(a => a.power));
 const img = (f, w) => f ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(f)}?width=${w}` : '';
 const G = E.GACHA;
+const strongVs = c => Object.keys(E.TYPES[c] || {});
+const weakVs = c => Object.keys(E.TYPES).filter(k => E.TYPES[k][c]);
+const chip = (c, cls) => `<span class="tchip ${cls || ''}" title="${esc(CLS[c].en)}">${CLS[c].icon} ${CLS[c].ko}</span>`;
 const SAMPLER = E.sampler(A, G.decay);
 const S15 = E.sampler(A.filter(a => a.power >= 15), G.decay);
 const SPACK = E.sampler(A.filter(a => a.power >= G.packMin), G.decay);
@@ -90,6 +93,8 @@ function openCard(id) {
         ${a.family ? `<dt>과</dt><dd>${esc(a.family)}</dd>` : ''}
         ${a.order ? `<dt>목</dt><dd>${esc(a.order)}</dd>` : ''}
         <dt>분류</dt><dd>${c.icon} ${c.ko} (${c.en})</dd>
+        <dt>강함 ▲</dt><dd>${strongVs(a.cls).map(k => chip(k, 'up')).join(' ') || '-'}</dd>
+        <dt>약함 ▼</dt><dd>${weakVs(a.cls).map(k => chip(k, 'down')).join(' ') || '-'}</dd>
         ${a.extinct ? '<dt>상태</dt><dd>멸종</dd>' : ''}
         <dt>보유</dt><dd>${save.owned[a.id] || 0}장</dd>
         <dt>출처</dt><dd><a href="https://www.wikidata.org/wiki/${a.qid}" target="_blank" rel="noopener">Wikidata ${a.qid}</a></dd>
@@ -147,6 +152,7 @@ function refresh() {
   if (current === 'dex') applyFilters();
   if (current === 'ai') renderAI();
   if (current === 'multi') renderMulti();
+  if (current === 'types') renderTypes();
 }
 
 // ---------------- home ----------------
@@ -342,13 +348,18 @@ document.querySelector('.b-speed').addEventListener('click', e => {
   document.querySelectorAll('.b-speed button').forEach(x => x.classList.toggle('on', x === b));
 });
 const STEP = 650;
-function fighterHTML(f, meId) {
+function fighterHTML(f, meId, all) {
   const a = f.animal, t = tierOf(a.power), c = CLS[a.cls];
+  const mu = (all || []).filter(o => o.i !== f.i).map(o => {
+    const m = E.typeMult(a.cls, o.animal.cls);
+    return m > 1 ? `<span class="tchip up">▲ ${CLS[o.animal.cls].icon}</span>` : m < 1 ? `<span class="tchip down">▼ ${CLS[o.animal.cls].icon}</span>` : '';
+  }).join('');
   return `<div class="fighter" id="f${f.i}" style="--tc:${t.color}">
     <div class="fimg" ${a.image ? `style="background-image:url('${img(a.image, 400)}')"` : ''}>${a.image ? '' : c.icon}</div>
     <div class="fb">
       <div class="own ${f.owner.id === meId ? 'me' : ''}">${esc(f.owner.name)}${f.owner.id === meId ? ' (나)' : ''}</div>
       <div class="fname">${esc(a.name)} <span class="tier" style="color:${t.color}">${a.power}글자</span></div>
+      <div class="fcls">${c.icon} ${c.ko} ${mu}</div>
       <div class="hpbar"><i style="width:100%"></i></div>
       <div class="hpt"><span class="hp">${f.maxHp}</span><span>/ ${f.maxHp} · 공격 ${f.atk}</span></div>
     </div>
@@ -373,7 +384,7 @@ async function playBattle(result, opts) {
   const F = result.fighters;
   $('bTitle').textContent = opts.title; $('bRound').textContent = '';
   $('arena').className = 'arena n' + F.length;
-  $('arena').innerHTML = F.map(f => fighterHTML(f, opts.meId)).join('');
+  $('arena').innerHTML = F.map(f => fighterHTML(f, opts.meId, F)).join('');
   $('bLog').innerHTML = ''; $('bResult').classList.add('hidden');
   $('battle').classList.add('on');
   const vs = document.createElement('div'); vs.className = 'vs-intro'; vs.textContent = 'VS'; document.body.appendChild(vs);
@@ -390,8 +401,10 @@ async function playBattle(result, opts) {
       else {
         de.classList.remove('hit'); void de.offsetWidth; de.classList.add('hit');
         floatText(ev.d, (ev.crit ? 'CRIT ' : '') + '-' + ev.dmg, ev.crit ? 'crit' : '');
+        if (ev.eff) floatText(ev.d, ev.eff === 'up' ? '효과가 굉장했다!' : '효과가 별로…', 'eff ' + ev.eff);
         setHp(F[ev.d], ev.hp);
-        logLine(`${nm(ev.a)} → ${nm(ev.d)} <b>${ev.dmg}</b> 피해${ev.crit ? ' (치명타!)' : ''}`);
+        const why = ev.eff === 'up' ? E.TYPES[F[ev.a].animal.cls][F[ev.d].animal.cls] : ev.eff === 'down' ? E.TYPES[F[ev.d].animal.cls][F[ev.a].animal.cls] : '';
+        logLine(`${nm(ev.a)} → ${nm(ev.d)} <b>${ev.dmg}</b> 피해${ev.crit ? ' (치명타!)' : ''}${ev.eff === 'up' ? ` <span class="up">▲상성 유리 — ${esc(why)}</span>` : ev.eff === 'down' ? ` <span class="down">▼상성 불리 — ${esc(why)}</span>` : ''}`);
       }
       await sleep(STEP * 0.65 / speed);
       ae.classList.remove('act');
@@ -419,6 +432,36 @@ function placesHTML(result, prizes, meId) {
       <span class="pi">${esc(f.owner.name)}<small>${esc(f.animal.name)} · ${f.animal.power}글자</small></span>
       ${pz != null ? `<span class="pc">🪙${fmt(pz)}</span>` : ''}</div>`;
   }).join('')}</div>`;
+}
+
+// ---------------- type chart ----------------
+$('typeRule').textContent = `상성이 유리하면 주는 피해 ×${E.TYPE_UP}, 불리하면 ×${E.TYPE_DOWN}. 대략 글자 3개 차이만큼의 효과예요 — 이름 길이가 여전히 가장 중요합니다.`;
+let typeView = 'list';
+$('typeView').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  typeView = b.dataset.v; [...$('typeView').children].forEach(x => x.classList.toggle('on', x === b)); renderTypes();
+};
+function renderTypes() {
+  const keys = Object.keys(CLS);
+  $('typeList').classList.toggle('hidden', typeView !== 'list');
+  $('typeGrid').classList.toggle('hidden', typeView !== 'grid');
+  const mine = new Set(ownedList().map(a => a.cls));
+  if (typeView === 'list') {
+    $('typeList').innerHTML = keys.map(k => `<div class="type-row">
+      <div class="type-me">${CLS[k].icon} <b>${CLS[k].ko}</b><small>${A.filter(a => a.cls === k).length.toLocaleString()}속${mine.has(k) ? ' · 보유' : ''}</small></div>
+      <div class="type-col"><div class="lbl up">▲ 강함</div>${strongVs(k).map(d => `<div class="tr">${chip(d, 'up')}<span class="muted small">${esc(E.TYPES[k][d])}</span></div>`).join('')}</div>
+      <div class="type-col"><div class="lbl down">▼ 약함</div>${weakVs(k).map(d => `<div class="tr">${chip(d, 'down')}<span class="muted small">${esc(E.TYPES[d][k])}</span></div>`).join('')}</div>
+    </div>`).join('');
+  } else {
+    let h = '<table class="type-grid"><tr><th class="corner">공격 ↓ / 방어 →</th>' + keys.map(k => `<th title="${CLS[k].ko}">${CLS[k].icon}</th>`).join('') + '</tr>';
+    for (const a of keys) {
+      h += `<tr><th class="rowh">${CLS[a].icon} ${CLS[a].ko}</th>` + keys.map(d => {
+        const m = E.typeMult(a, d);
+        return m > 1 ? `<td class="up" title="${esc(E.TYPES[a][d])}">▲</td>` : m < 1 ? `<td class="down" title="${esc(E.TYPES[d][a])}">▼</td>` : '<td></td>';
+      }).join('') + '</tr>';
+    }
+    $('typeGrid').innerHTML = h + '</table>';
+  }
 }
 
 // ---------------- AI battle ----------------
