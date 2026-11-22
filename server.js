@@ -16,7 +16,15 @@ const BY_ID = new Map(DB.animals.map(a => [a.id, a]));
 
 const app = express();
 app.use(compression());
-app.use(express.static(path.join(__dirname, 'public'))); // ETag revalidation so updates show up right after deploy
+// Every deploy gets a new asset version, so browsers fetch fresh app.js/style.css instead of old cached copies.
+const ASSET_V = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 12);
+const INDEX = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8').replace(/__V__/g, ASSET_V);
+const sendIndex = (_, res) => { res.set('Cache-Control', 'no-cache'); res.type('html').send(INDEX); };
+app.get(['/', '/index.html'], sendIndex);
+app.use(express.static(path.join(__dirname, 'public'), {
+  // versioned URLs (?v=...) can be cached long; everything else revalidates
+  setHeaders: (res, _p) => res.set('Cache-Control', res.req.query.v ? 'public, max-age=31536000, immutable' : 'no-cache'),
+}));
 app.get('/healthz', (_, res) => res.send('ok'));
 const server = http.createServer(app);
 const io = new Server(server);

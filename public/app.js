@@ -8,7 +8,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const fmt = n => Number(n).toLocaleString();
 
 // ---------------- data ----------------
-const DB = await (await fetch('animals.json')).json();
+const DB = await (await fetch('animals.json?v=' + (window.ASSET_V || ''))).json();
 const A = DB.animals;                    // sorted, id = index
 const CLS = DB.classes, TIERS = DB.tiers;
 const BY_ID = new Map(A.map(a => [a.id, a]));
