@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Longer The Stronger</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand" data-go="home"><span class="l1">THE</span> <span class="l2">LONGER</span> <span class="l1">THE</span> <span class="l3">STRONGER</span></div>
+  <nav id="nav">
+    <button data-go="home">홈</button>
+    <button data-go="gacha">뽑기</button>
+    <button data-go="dex">내 동물</button>
+    <button data-go="ai">AI 배틀</button>
+    <button data-go="multi">멀티플레이</button>
+  </nav>
+  <div class="wallet"><span class="coin">🪙</span> <b id="coins">0</b></div>
+</header>
+
+<main>
+  <!-- HOME -->
+  <section id="home" class="screen">
+    <div class="hero">
+      <div class="hero-title"><span class="l1">THE</span> <span class="l2">LONGER</span> <span class="l1">THE</span> <span class="l3">STRONGER</span></div>
+      <p class="muted">영어 이름이 길수록 강하다. 동물을 뽑고, 출전시키고, 이겨라.</p>
+    </div>
+    <div class="home-grid">
+      <div class="panel">
+        <h3>출전 동물</h3>
+        <div id="homeMain"></div>
+        <button class="btn ghost" data-go="dex">출전 동물 바꾸기</button>
+      </div>
+      <div class="panel menu">
+        <button class="btn big" data-go="gacha">🎴 뽑기</button>
+        <button class="btn big" data-go="ai">🤖 AI 배틀 (1:1)</button>
+        <button class="btn big" data-go="multi">🌐 멀티플레이 (방 코드)</button>
+        <button class="btn big ghost" data-go="dex">📖 내 동물 · 도감</button>
+      </div>
+      <div class="panel">
+        <h3>내 기록</h3>
+        <div id="homeStats" class="stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GACHA -->
+  <section id="gacha" class="screen">
+    <div class="gacha-top">
+      <div class="panel gacha-machine">
+        <div class="gate"><div class="gdoor l"></div><div class="gdoor r"></div><div class="gq">?</div></div>
+        <div class="gbtns">
+          <button class="btn big" id="pull1">1회 뽑기 <small>🪙 <span id="cost1"></span></small></button>
+          <button class="btn big" id="pull10">10회 뽑기 <small>🪙 <span id="cost10"></span></small></button>
+        </div>
+        <div class="pity">
+          <div class="pity-label">천장까지 <b id="pityLeft"></b>회 — 도달하면 <b>동물 팩</b> (<span id="packDesc"></span>)</div>
+          <div class="bar"><i id="pityBar"></i></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>확률표</h3>
+        <table class="odds" id="oddsTable"></table>
+        <p class="muted small">글자 수가 1 늘 때마다 개별 등장 확률이 줄어듭니다. 중복은 🪙<span id="dupRefund"></span> 환급. 10회 뽑기는 15글자 이상 1장 보장.</p>
+      </div>
+    </div>
+    <h3 id="lastTitle" class="hidden">최근 뽑기 결과</h3>
+    <div class="grid" id="lastPull"></div>
+  </section>
+
+  <!-- DEX -->
+  <section id="dex" class="screen">
+    <div class="controls">
+      <div class="seg" id="dexMode"><button data-m="own" class="on">보유</button><button data-m="all">전체 도감</button></div>
+      <input type="search" id="q" placeholder="이름 / 학명 / 한국어 이름">
+      <select id="cls"><option value="">전체 분류</option></select>
+      <select id="tierSel"><option value="">전체 등급</option></select>
+      <select id="sort">
+        <option value="pd">파워 높은 순</option>
+        <option value="pa">파워 낮은 순</option>
+        <option value="na">이름 A→Z</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="more" id="more"></div>
+  </section>
+
+  <!-- AI -->
+  <section id="ai" class="screen">
+    <div class="ai-wrap">
+      <div class="panel">
+        <h3>내 출전 동물</h3>
+        <div id="aiMine"></div>
+        <button class="btn ghost" id="aiChange">바꾸기</button>
+      </div>
+      <div class="panel">
+        <h3>상대 난이도</h3>
+        <div id="aiLevels" class="levels"></div>
+        <p class="muted small">상대는 내 동물 글자 수를 기준으로 정해집니다. 지면 🪙<span id="aiLose"></span>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MULTI -->
+  <section id="multi" class="screen">
+    <div id="mpOffline" class="panel hidden">
+      <h3>서버에 연결되지 않았어요</h3>
+      <p class="muted">멀티플레이는 서버로 실행해야 합니다: <code>npm start</code> 후 <code>http://localhost:3000</code></p>
+    </div>
+    <div id="mpEntry" class="panel mp-entry">
+      <label>닉네임 <input id="nick" maxlength="12" placeholder="닉네임"></label>
+      <div class="mp-actions">
+        <button class="btn big" id="createRoom">방 만들기</button>
+        <div class="join">
+          <input id="joinCode" maxlength="5" placeholder="방 코드" autocomplete="off">
+          <button class="btn big" id="joinRoom">참가</button>
+        </div>
+      </div>
+      <p class="err" id="mpErr"></p>
+    </div>
+    <div id="mpRoom" class="hidden">
+      <div class="room-head panel">
+        <div>
+          <div class="muted small">방 코드</div>
+          <div class="room-code" id="roomCode"></div>
+        </div>
+        <button class="btn ghost" id="copyCode">코드 복사</button>
+        <div class="room-state" id="roomState"></div>
+        <button class="btn ghost" id="leaveRoom">나가기</button>
+      </div>
+      <div class="slots" id="slots"></div>
+      <div class="room-foot panel">
+        <button class="btn" id="mpPick">출전 동물 설정</button>
+        <button class="btn big" id="startBattle">배틀 시작</button>
+        <div class="muted small" id="prizeInfo"></div>
+      </div>
+      <p class="err" id="roomErr"></p>
+    </div>
+  </section>
+</main>
+
+<!-- card detail -->
+<div class="overlay" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<!-- animal picker -->
+<div class="overlay" id="picker">
+  <div class="sheet wide">
+    <div class="picker-head"><h3>출전 동물 선택</h3><input type="search" id="pq" placeholder="검색"><button class="close" id="pclose">×</button></div>
+    <div class="grid" id="pgrid"></div>
+  </div>
+</div>
+
+<!-- gacha reveal -->
+<div class="overlay reveal" id="reveal">
+  <div class="stage" id="stage">
+    <div class="beam"></div>
+    <div class="rays"></div>
+    <div class="flash"></div>
+    <div class="door left"><span></span></div>
+    <div class="door right"><span></span></div>
+    <div class="rinfo">
+      <div class="r-pack hidden" id="rPack">🎁 동물 팩!</div>
+      <div class="r-class" id="rClass"></div>
+      <div class="r-power" id="rPower"></div>
+      <div class="r-name" id="rName"></div>
+      <div class="r-card" id="rCard"></div>
+    </div>
+  </div>
+  <div class="r-ctrl">
+    <span id="rCount" class="muted"></span>
+    <button class="btn ghost" id="rSkipAll">모두 건너뛰기</button>
+    <span class="muted small">화면 클릭 = 다음</span>
+  </div>
+</div>
+
+<!-- battle -->
+<div class="overlay battle" id="battle">
+  <div class="b-head">
+    <div class="b-title" id="bTitle"></div>
+    <div class="b-round" id="bRound"></div>
+    <div class="b-speed"><button data-s="1" class="on">x1</button><button data-s="2">x2</button><button data-s="4">x4</button><button data-s="skip">결과 보기</button></div>
+  </div>
+  <div class="arena" id="arena"></div>
+  <div class="b-log" id="bLog"></div>
+  <div class="b-result hidden" id="bResult"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js" onerror="window.io=undefined"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

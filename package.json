@@ -1,0 +1,18 @@
+{
+  "name": "the-longer-the-stronger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Animal battle game where longer English names are stronger",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "compression": "^1.8.2",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
