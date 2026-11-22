@@ -40,6 +40,7 @@ function publicRoom(r) {
     players: [...r.players.values()].map(p => ({
       id: p.id, name: p.name, ready: p.ready,
       animal: p.animalId != null ? BY_ID.get(p.animalId) || null : null,
+      enh: p.enh || 0,
     })),
   };
 }
@@ -85,12 +86,12 @@ io.on('connection', socket => {
 
   socket.on('room:leave', () => leave(socket));
 
-  socket.on('room:pick', ({ animalId } = {}) => {
+  socket.on('room:pick', ({ animalId, enh } = {}) => {
     const r = rooms.get(socket.data.room);
     if (!r || r.state !== 'lobby') return;
     const p = r.players.get(socket.id);
     if (!p || !BY_ID.has(animalId)) return;
-    p.animalId = animalId; p.ready = true;
+    p.animalId = animalId; p.enh = Engine.clampEnh(enh); p.ready = true;
     broadcast(r);
   });
 
@@ -103,7 +104,7 @@ io.on('connection', socket => {
     if (ps.length < 2) return ack({ ok: false, error: '2명 이상 필요해요.' });
     if (ps.some(p => p.animalId == null)) return ack({ ok: false, error: '모든 플레이어가 출전 동물을 골라야 해요.' });
 
-    const fighters = ps.map(p => ({ owner: { id: p.id, name: p.name }, animal: BY_ID.get(p.animalId) }));
+    const fighters = ps.map(p => ({ owner: { id: p.id, name: p.name }, animal: BY_ID.get(p.animalId), enh: p.enh || 0 }));
     const result = Engine.simulate(fighters);
     const table = Engine.ROOM_PRIZES[ps.length];
     const prizes = {};

@@ -13,6 +13,7 @@
     <button data-go="home">홈</button>
     <button data-go="gacha">뽑기</button>
     <button data-go="dex">내 동물</button>
+    <button data-go="enhance">강화</button>
     <button data-go="ai">AI 배틀</button>
     <button data-go="multi">멀티플레이</button>
     <button data-go="types">상성표</button>
@@ -100,6 +101,28 @@
         <h3>상대 난이도</h3>
         <div id="aiLevels" class="levels"></div>
         <p class="muted small">상대는 내 동물 글자 수를 기준으로 정해집니다. 지면 🪙<span id="aiLose"></span>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENHANCE -->
+  <section id="enhance" class="screen">
+    <div class="enh-wrap">
+      <div class="panel enh-left">
+        <h3>강화할 동물</h3>
+        <div id="enhCard"></div>
+        <button class="btn ghost" id="enhChange">동물 바꾸기</button>
+      </div>
+      <div class="panel enh-right">
+        <div class="enh-anvil" id="enhAnvil">
+          <div class="enh-lv"><span id="enhFrom"></span><span class="arrow">→</span><span id="enhTo"></span></div>
+          <div class="enh-fx" id="enhFx"></div>
+        </div>
+        <table class="enh-info" id="enhInfo"></table>
+        <label class="enh-dup"><input type="checkbox" id="enhDup"> <span id="enhDupLabel"></span></label>
+        <button class="btn big" id="enhGo">강화하기</button>
+        <p class="enh-msg" id="enhMsg"></p>
+        <details class="enh-rules"><summary>강화 규칙</summary><div id="enhRules"></div></details>
       </div>
     </div>
   </section>

@@ -265,3 +265,46 @@ table.type-grid td.down{background:#ff5a6a22;color:#ff9aa4;font-weight:900;curso
 .fighter .fcls .tchip{font-size:11px;padding:1px 6px}
 .dmg.eff{font-size:16px;top:58%;animation-duration:1.2s}
 .dmg.eff.up{color:#7ef0a8}.dmg.eff.down{color:#ff9aa4}
+
+/* enhancement */
+.plus{color:#ffd24a;font-style:normal;font-weight:900}
+.pow .plus{font-size:.7em;margin-left:1px}
+.enh-wrap{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
+@media(max-width:800px){.enh-wrap{grid-template-columns:1fr}}
+.enh-left #enhCard .card{max-width:260px;margin:0 auto 12px}
+.enh-right{display:flex;flex-direction:column;gap:14px}
+.enh-anvil{position:relative;height:150px;border-radius:14px;background:radial-gradient(circle at 50% 70%,#2a2f3a,#111318);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.enh-lv{font-size:44px;font-weight:900;display:flex;gap:18px;align-items:center;z-index:1}
+.enh-lv .arrow{color:var(--muted);font-size:28px}
+#enhTo{color:var(--accent)}
+.enh-fx{position:absolute;inset:0;pointer-events:none}
+.enh-anvil.hammer .enh-lv{animation:hammer .22s ease-in-out 5}
+.enh-anvil.hammer .enh-fx{background:radial-gradient(circle at 50% 60%,#ffcc3355,transparent 60%);animation:sparks .22s 5}
+@keyframes hammer{50%{transform:scale(.9) translateY(4px)}}
+@keyframes sparks{50%{opacity:.2}}
+.enh-anvil.success{box-shadow:0 0 40px #ffcc33aa inset}
+.enh-anvil.success .enh-fx{background:repeating-conic-gradient(#ffcc3355 0 8deg,transparent 8deg 24deg);animation:spin 6s linear infinite}
+.enh-anvil.fail .enh-lv{animation:hit .4s}
+.enh-anvil.drop{box-shadow:0 0 40px #ff5a6aaa inset}
+.enh-anvil.drop .enh-lv{animation:hit .5s}
+table.enh-info{width:100%;border-collapse:collapse;font-size:14px}
+table.enh-info td{padding:6px 4px;border-bottom:1px solid var(--line)}
+table.enh-info td:last-child{text-align:right}
+.enh-dup{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.enh-msg{min-height:1.4em;font-size:18px;text-align:center;margin:0}
+.enh-rules{font-size:13px;color:var(--muted)}
+.enh-rules ul{padding-left:18px}
+table.enh-table{border-collapse:collapse;width:100%;max-width:360px}
+table.enh-table td,table.enh-table th{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left}
+
+/* narrow screens: brand + coins on top, tabs in one scrollable row below */
+#nav button{white-space:nowrap}
+@media(max-width:820px){
+  #topbar{flex-wrap:wrap;gap:6px 12px;padding:8px 12px}
+  .wallet{margin-left:auto}
+  #nav{order:3;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #nav::-webkit-scrollbar{display:none}
+  #nav button{padding:7px 10px;flex:0 0 auto}
+  .controls{position:static}
+  main{padding:14px 12px 50px}
+}

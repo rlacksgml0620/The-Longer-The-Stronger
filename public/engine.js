@@ -64,8 +64,9 @@
     seed = seed == null ? newSeed() : seed;
     const R = rng(seed);
     const F = fighters.map((f, i) => {
-      const s = stats(f.animal.power);
-      return { i, owner: f.owner, animal: f.animal, maxHp: s.hp, hp: s.hp, atk: s.atk, spd: s.spd, crit: s.crit, dodge: s.dodge, alive: true };
+      const enh = clampEnh(f.enh);
+      const s = stats(f.animal.power + enh);
+      return { i, owner: f.owner, animal: f.animal, enh, maxHp: s.hp, hp: s.hp, atk: s.atk, spd: s.spd, crit: s.crit, dodge: s.dodge, alive: true };
     });
     const log = [];
     const koOrder = [];
@@ -99,10 +100,28 @@
     log.push({ t: 'end', placements });
     return {
       seed,
-      fighters: F.map(f => ({ i: f.i, owner: f.owner, animal: f.animal, maxHp: f.maxHp, atk: Math.round(f.atk), spd: Math.round(f.spd) })),
+      fighters: F.map(f => ({ i: f.i, owner: f.owner, animal: f.animal, enh: f.enh, maxHp: f.maxHp, atk: Math.round(f.atk), spd: Math.round(f.spd) })),
       log,
       placements,
     };
+  }
+
+  // ---------- Enhancement ----------
+  // each level = +1 bonus letter in battle (name itself is unchanged)
+  const ENHANCE = {
+    max: 10,
+    rate: [95, 90, 85, 75, 65, 55, 45, 35, 25, 15], // % success for +L → +L+1
+    cost: L => 50 * (L + 1) * (L + 1),              // coins for +L → +L+1
+    dropFrom: 5,      // failing at +5 or higher loses one level
+    dupBonus: 10,     // spending a duplicate card: +10%p success and no level loss
+  };
+  const clampEnh = n => Math.max(0, Math.min(ENHANCE.max, Math.floor(Number(n) || 0)));
+  // try to enhance from level L. r = random [0,1). returns { ok, level, dropped }
+  function enhanceTry(L, useDup, r) {
+    const rate = Math.min(100, ENHANCE.rate[L] + (useDup ? ENHANCE.dupBonus : 0));
+    if (r * 100 < rate) return { ok: true, level: L + 1, dropped: false, rate };
+    const drop = L >= ENHANCE.dropFrom && !useDup;
+    return { ok: false, level: drop ? L - 1 : L, dropped: drop, rate };
   }
 
   // ---------- Prizes ----------
@@ -159,5 +178,5 @@
     return 'white';
   }
 
-  return { TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
+  return { ENHANCE, clampEnh, enhanceTry, TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
 });

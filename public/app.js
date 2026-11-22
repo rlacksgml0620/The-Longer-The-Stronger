@@ -39,6 +39,10 @@ if (!save) {
 const owns = id => (save.owned[id] || 0) > 0;
 const ownedList = () => Object.keys(save.owned).map(Number).filter(owns).map(id => BY_ID.get(id)).filter(Boolean);
 const mainAnimal = () => BY_ID.get(save.main) || ownedList()[0];
+save.enh ||= {};
+const enhOf = id => save.enh[id] || 0;
+const powText = (power, enh) => `${power}${enh ? `<em class="plus">+${enh}</em>` : ''}`;
+function emitPick() { const m = mainAnimal(); if (room && m) socket.emit('room:pick', { animalId: m.id, enh: enhOf(m.id) }); }
 
 function addCoins(n, why) {
   save.coins += n; if (n > 0) save.st.earned += n; persist(); renderWallet();
@@ -52,6 +56,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 // ---------------- card UI ----------------
 function cardHTML(a, opt = {}) {
   const t = tierOf(a.power), c = CLS[a.cls];
+  const enh = opt.enh != null ? opt.enh : (opt.locked ? 0 : enhOf(a.id));
   const locked = opt.locked;
   const cnt = save.owned[a.id] || 0;
   return `<div class="card ${locked ? 'locked' : ''} ${opt.sel ? 'sel' : ''}" style="--tc:${t.color}" data-id="${a.id}" ${opt.noClick ? '' : 'data-open="1"'}>
@@ -65,13 +70,13 @@ function cardHTML(a, opt = {}) {
       ${a.ko && !locked ? `<div class="ko">${esc(a.ko)}</div>` : ''}
       ${locked ? '' : `<div class="sci">${esc(a.sci)}</div>`}
       <div class="bar"><i style="width:${a.power / MAXP * 100}%"></i></div>
-      <div class="foot"><span class="pow">${a.power}<small>글자</small></span><span class="badge">${c.icon} ${c.ko}</span></div>
+      <div class="foot"><span class="pow">${powText(a.power, enh)}<small>글자</small></span><span class="badge">${c.icon} ${c.ko}</span></div>
     </div></div>`;
 }
 
 function openCard(id) {
   const a = BY_ID.get(id); if (!a) return;
-  const t = tierOf(a.power), c = CLS[a.cls], st = E.stats(a.power);
+  const t = tierOf(a.power), c = CLS[a.cls], en = enhOf(a.id), st = E.stats(a.power + en);
   const rank = 1 + A.filter(b => b.power > a.power).length;
   const letters = [...a.name].map(ch => /[A-Za-zÀ-ÿ]/.test(ch) ? `<b>${ch.toUpperCase()}</b>` : `<b class="sp">${ch === ' ' ? '' : esc(ch)}</b>`).join('');
   $('sheet').style.setProperty('--tc', t.color);
@@ -87,6 +92,7 @@ function openCard(id) {
         <span class="pow" style="font-size:44px;color:${t.color}">${a.power}</span><span class="muted">글자 · 전체 ${fmt(rank)}위 / ${fmt(A.length)}</span>
       </div>
       <dl>
+        ${en ? `<dt>강화</dt><dd><b class="plus">+${en}</b> (전투 시 글자 +${en})</dd>` : ''}
         <dt>배틀 능력치</dt><dd>HP ${st.hp} · 공격 ${Math.round(st.atk)} · 속도 ${Math.round(st.spd)}</dd>
         <dt>학명</dt><dd><i>${esc(a.sci)}</i></dd>
         <dt>속</dt><dd><i>${esc(a.genus)}</i> — 이 속에서 가장 긴 이름 (이름 있는 종 ${a.genusNamed}개 중)</dd>
@@ -99,13 +105,15 @@ function openCard(id) {
         <dt>보유</dt><dd>${save.owned[a.id] || 0}장</dd>
         <dt>출처</dt><dd><a href="https://www.wikidata.org/wiki/${a.qid}" target="_blank" rel="noopener">Wikidata ${a.qid}</a></dd>
       </dl>
-      ${owns(a.id) ? (save.main === a.id ? '<button class="btn ghost" disabled>현재 출전 동물</button>' : `<button class="btn" data-setmain="${a.id}">출전 동물로 설정</button>`) : ''}
+      ${owns(a.id) ? (save.main === a.id ? '<button class="btn ghost" disabled>현재 출전 동물</button>' : `<button class="btn" data-setmain="${a.id}">출전 동물로 설정</button>`) + ` <button class="btn ghost" data-enhance="${a.id}">강화하기</button>` : ''}
     </div>`;
   $('modal').classList.add('on');
 }
 document.addEventListener('click', e => {
   const sm = e.target.closest('[data-setmain]');
   if (sm) { setMain(+sm.dataset.setmain); $('modal').classList.remove('on'); return; }
+  const en = e.target.closest('[data-enhance]');
+  if (en) { enhSel = +en.dataset.enhance; $('modal').classList.remove('on'); show('enhance'); return; }
   if (e.target.closest('[data-close]') || e.target.id === 'modal') { $('modal').classList.remove('on'); return; }
   const go = e.target.closest('[data-go]');
   if (go) { show(go.dataset.go); return; }
@@ -114,7 +122,7 @@ document.addEventListener('click', e => {
 });
 function setMain(id) {
   save.main = id; persist(); toast(`출전 동물: ${BY_ID.get(id).name}`);
-  if (room) socket.emit('room:pick', { animalId: id });
+  emitPick();
   refresh();
 }
 
@@ -142,6 +150,7 @@ function show(name) {
   current = name;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === name));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.go === name));
+  const on = document.querySelector('#nav button.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
   refresh();
   window.scrollTo(0, 0);
 }
@@ -153,6 +162,7 @@ function refresh() {
   if (current === 'ai') renderAI();
   if (current === 'multi') renderMulti();
   if (current === 'types') renderTypes();
+  if (current === 'enhance') renderEnhance();
 }
 
 // ---------------- home ----------------
@@ -358,7 +368,7 @@ function fighterHTML(f, meId, all) {
     <div class="fimg" ${a.image ? `style="background-image:url('${img(a.image, 400)}')"` : ''}>${a.image ? '' : c.icon}</div>
     <div class="fb">
       <div class="own ${f.owner.id === meId ? 'me' : ''}">${esc(f.owner.name)}${f.owner.id === meId ? ' (나)' : ''}</div>
-      <div class="fname">${esc(a.name)} <span class="tier" style="color:${t.color}">${a.power}글자</span></div>
+      <div class="fname">${esc(a.name)} <span class="tier" style="color:${t.color}">${powText(a.power, f.enh)}글자</span></div>
       <div class="fcls">${c.icon} ${c.ko} ${mu}</div>
       <div class="hpbar"><i style="width:100%"></i></div>
       <div class="hpt"><span class="hp">${f.maxHp}</span><span>/ ${f.maxHp} · 공격 ${f.atk}</span></div>
@@ -429,10 +439,67 @@ function placesHTML(result, prizes, meId) {
   return `<div class="places">${result.placements.map((fi, k) => {
     const f = result.fighters[fi]; const pz = prizes ? prizes[k] : null;
     return `<div class="place ${f.owner.id === meId ? 'me' : ''}"><span class="pn">${['🥇', '🥈', '🥉', '4'][k] || k + 1}</span>
-      <span class="pi">${esc(f.owner.name)}<small>${esc(f.animal.name)} · ${f.animal.power}글자</small></span>
+      <span class="pi">${esc(f.owner.name)}<small>${esc(f.animal.name)} · ${powText(f.animal.power, f.enh)}글자</small></span>
       ${pz != null ? `<span class="pc">🪙${fmt(pz)}</span>` : ''}</div>`;
   }).join('')}</div>`;
 }
+
+// ---------------- enhancement ----------------
+const EH = E.ENHANCE;
+let enhSel = null, enhBusy = false;
+$('enhRules').innerHTML = `<ul>
+  <li>강화 1단계 = 전투 시 글자 수 +1 (이름은 그대로). 최대 +${EH.max}</li>
+  <li>+${EH.dropFrom} 이상에서 실패하면 1단계 하락</li>
+  <li>같은 동물의 중복 카드 1장을 쓰면 성공률 +${EH.dupBonus}%p, 실패해도 하락 없음</li>
+</ul><table class="enh-table"><tr><th>단계</th><th>성공률</th><th>비용</th></tr>${EH.rate.map((r, L) => `<tr><td>+${L} → +${L + 1}</td><td>${r}%</td><td>🪙${fmt(EH.cost(L))}</td></tr>`).join('')}</table>`;
+$('enhChange').onclick = async () => { const id = await pickAnimal(); if (id != null) { enhSel = id; $('enhMsg').textContent = ''; renderEnhance(); } };
+function renderEnhance() {
+  if (enhSel == null || !owns(enhSel)) enhSel = mainAnimal() ? mainAnimal().id : null;
+  const a = BY_ID.get(enhSel);
+  if (!a) { $('enhCard').innerHTML = '<p class="muted">동물이 없어요.</p>'; $('enhGo').disabled = true; return; }
+  const L = enhOf(a.id), cnt = save.owned[a.id] || 0, maxed = L >= EH.max;
+  $('enhCard').innerHTML = cardHTML(a, { noClick: true });
+  $('enhFrom').innerHTML = `+${L}`;
+  $('enhTo').innerHTML = maxed ? 'MAX' : `+${L + 1}`;
+  if (cnt <= 1) $('enhDup').checked = false;
+  const useDup = $('enhDup').checked;
+  const rate = maxed ? 0 : Math.min(100, EH.rate[L] + (useDup ? EH.dupBonus : 0));
+  const now = E.stats(a.power + L), next = E.stats(a.power + Math.min(EH.max, L + 1));
+  $('enhInfo').innerHTML = maxed ? '<tr><td colspan="2">최대 강화 달성!</td></tr>' : `
+    <tr><td>성공률</td><td><b>${rate}%</b></td></tr>
+    <tr><td>비용</td><td>🪙${fmt(EH.cost(L))}</td></tr>
+    <tr><td>전투 글자 수</td><td>${a.power + L} → <b class="plus">${a.power + L + 1}</b></td></tr>
+    <tr><td>HP / 공격</td><td>${now.hp} / ${Math.round(now.atk)} → <b class="plus">${next.hp} / ${Math.round(next.atk)}</b></td></tr>
+    <tr><td>실패 시</td><td>${L >= EH.dropFrom && !useDup ? '<span class="down">+' + (L - 1) + '로 하락</span>' : '유지'}</td></tr>`;
+  $('enhDup').disabled = cnt <= 1 || maxed;
+  $('enhDupLabel').innerHTML = `중복 카드 1장 사용 (보유 ${cnt}장, 여분 ${Math.max(0, cnt - 1)}장) — 성공률 +${EH.dupBonus}%p, 하락 방지`;
+  $('enhGo').disabled = maxed || save.coins < EH.cost(L) || enhBusy;
+  $('enhGo').textContent = maxed ? '최대 강화' : save.coins < EH.cost(L) ? '코인 부족' : '강화하기';
+}
+$('enhDup').onchange = renderEnhance;
+$('enhGo').onclick = async () => {
+  const a = BY_ID.get(enhSel); if (!a || enhBusy) return;
+  const L = enhOf(a.id); if (L >= EH.max || save.coins < EH.cost(L)) return;
+  const useDup = $('enhDup').checked && (save.owned[a.id] || 0) > 1;
+  enhBusy = true; $('enhGo').disabled = true; $('enhMsg').textContent = '';
+  addCoins(-EH.cost(L));
+  if (useDup) save.owned[a.id]--;
+  const r = E.enhanceTry(L, useDup, Math.random());
+  if (r.level) save.enh[a.id] = r.level; else delete save.enh[a.id];
+  persist();
+  const anv = $('enhAnvil');
+  anv.className = 'enh-anvil hammer';
+  await sleep(1100);
+  anv.className = 'enh-anvil ' + (r.ok ? 'success' : r.dropped ? 'drop' : 'fail');
+  $('enhMsg').innerHTML = r.ok ? `<span class="plus">✨ 강화 성공! +${r.level}</span>`
+    : r.dropped ? `<span class="down">💥 실패… +${r.level}로 하락</span>`
+    : `<span class="muted">실패… 단계는 유지됩니다${useDup ? ' (중복 카드 소모)' : ''}</span>`;
+  if (r.ok && r.level >= 7) toast(`🔥 ${a.name} +${r.level} 달성!`);
+  enhBusy = false;
+  emitPick();
+  renderEnhance();
+  setTimeout(() => { if (!enhBusy) anv.className = 'enh-anvil'; }, 1500);
+};
 
 // ---------------- type chart ----------------
 $('typeRule').textContent = `상성이 유리하면 주는 피해 ×${E.TYPE_UP}, 불리하면 ×${E.TYPE_DOWN}. 대략 글자 3개 차이만큼의 효과예요 — 이름 길이가 여전히 가장 중요합니다.`;
@@ -471,19 +538,20 @@ function renderAI() {
   const m = mainAnimal();
   $('aiMine').innerHTML = m ? cardHTML(m) : '<p class="muted">동물이 없어요.</p>';
   $('aiLevels').innerHTML = E.AI_LEVELS.map(l => {
-    const lo = m ? Math.max(MINP, m.power + l.diff[0]) : 0, hi = m ? Math.min(MAXP, m.power + l.diff[1]) : 0;
+    const mp = m ? m.power + enhOf(m.id) : 0, lo = m ? Math.max(MINP, mp + l.diff[0]) : 0, hi = m ? Math.min(MAXP, mp + l.diff[1]) : 0;
     return `<button class="level" data-lv="${l.id}"><b>${l.ko}</b><span class="muted small">상대 ${lo}–${hi}글자</span><br><span class="rw">승리 🪙${l.reward}</span></button>`;
   }).join('');
 }
 $('aiLevels').addEventListener('click', async e => {
   const b = e.target.closest('[data-lv]'); if (!b) return;
   const lv = E.AI_LEVELS.find(l => l.id === b.dataset.lv); const m = mainAnimal(); if (!m) return;
-  let p = m.power + lv.diff[0] + Math.floor(Math.random() * (lv.diff[1] - lv.diff[0] + 1));
+  const mp = m.power + enhOf(m.id);
+  let p = mp + lv.diff[0] + Math.floor(Math.random() * (lv.diff[1] - lv.diff[0] + 1));
   p = Math.max(MINP, Math.min(MAXP, p));
-  while (!BY_POWER[p]) p += p > m.power ? -1 : 1;
+  while (!BY_POWER[p]) p += p > mp ? -1 : 1;
   const pool = BY_POWER[p].filter(a => a.id !== m.id);
   const foe = (pool.length ? pool : BY_POWER[p])[Math.floor(Math.random() * (pool.length || BY_POWER[p].length))];
-  const res = E.simulate([{ owner: { id: 'me', name: save.nick || '나' }, animal: m }, { owner: { id: 'ai', name: 'AI ' + lv.ko }, animal: foe }]);
+  const res = E.simulate([{ owner: { id: 'me', name: save.nick || '나' }, animal: m, enh: enhOf(m.id) }, { owner: { id: 'ai', name: 'AI ' + lv.ko }, animal: foe }]);
   const win = res.fighters[res.placements[0]].owner.id === 'me';
   const reward = win ? lv.reward : E.AI_LOSE_REWARD;
   const act = await playBattle(res, {
@@ -520,7 +588,7 @@ function renderMulti() {
     if (!p) { html += `<div class="slot"><div class="empty">빈 자리</div></div>`; continue; }
     html += `<div class="slot filled ${p.id === meId ? 'me' : ''}">
       <div class="who">${esc(p.name)}${p.id === meId ? ' (나)' : ''}${p.id === room.host ? '<span class="host">방장</span>' : ''}</div>
-      ${p.animal ? cardHTML(p.animal, { noClick: true, hideCount: true, hideMain: true }) : '<div class="empty">출전 동물 미정</div>'}
+      ${p.animal ? cardHTML(p.animal, { noClick: true, hideCount: true, hideMain: true, enh: p.enh || 0 }) : '<div class="empty">출전 동물 미정</div>'}
     </div>`;
   }
   $('slots').innerHTML = html;
@@ -555,7 +623,7 @@ if (socket) {
   const afterJoin = res => {
     if (!res.ok) { $('mpErr').textContent = res.error; return; }
     $('mpErr').textContent = ''; meId = res.me;
-    const m = mainAnimal(); if (m) socket.emit('room:pick', { animalId: m.id });
+    setTimeout(emitPick, 0);
   };
   $('createRoom').onclick = () => socket.emit('room:create', { name: nick() }, afterJoin);
   $('joinRoom').onclick = () => {
