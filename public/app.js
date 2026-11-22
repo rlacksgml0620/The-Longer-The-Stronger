@@ -25,12 +25,82 @@ const SPACK = E.sampler(A.filter(a => a.power >= G.packMin), G.decay);
 const BY_POWER = {};
 A.forEach(a => (BY_POWER[a.power] ||= []).push(a));
 
+// ---------------- local accounts ----------------
+// Accounts live only in this browser (localStorage). Passwords are stored as salted SHA-256 hashes.
+const ACC_KEY = 'tlts_accounts', SES_KEY = 'tlts_session', GUEST_KEY = 'tlts_save_v1';
+const accounts = JSON.parse(localStorage.getItem(ACC_KEY) || '{}');
+const saveAccounts = () => localStorage.setItem(ACC_KEY, JSON.stringify(accounts));
+async function hashPw(pw, salt) {
+  const text = salt + ':' + pw;
+  if (window.crypto && crypto.subtle) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  // fallback (non-https LAN address): FNV-1a, repeated
+  let h = 0x811c9dc5, out = '';
+  for (let r = 0; r < 8; r++) { for (const ch of text + r) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } out += h.toString(16).padStart(8, '0'); }
+  return 'f' + out;
+}
+function authGate() {
+  const ses = localStorage.getItem(SES_KEY);
+  if (ses === '__guest__') return Promise.resolve(null);
+  if (ses && accounts[ses]) return Promise.resolve(ses);
+  return new Promise(resolve => {
+    let mode = 'login';
+    const box = $('auth'); box.classList.add('on');
+    const setMode = m => {
+      mode = m;
+      [...$('authTabs').children].forEach(b => b.classList.toggle('on', b.dataset.t === m));
+      document.querySelectorAll('.signup-only').forEach(el => el.classList.toggle('hidden', m !== 'signup'));
+      $('authImportWrap').classList.toggle('hidden', m !== 'signup' || !localStorage.getItem(GUEST_KEY));
+      $('authGo').textContent = m === 'login' ? '로그인' : '회원가입';
+      $('authPw').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+      $('authErr').textContent = '';
+    };
+    const ids = Object.keys(accounts);
+    $('authList').innerHTML = ids.length ? '<div class="muted small">이 PC의 계정</div>' + ids.map(id => `<button class="auth-acc" data-id="${esc(id)}">${esc(accounts[id].nick)} <small>@${esc(id)}</small></button>`).join('') : '';
+    $('authList').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { setMode('login'); $('authId').value = b.dataset.id; $('authPw').focus(); } };
+    $('authTabs').onclick = e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.t); };
+    const done = id => { localStorage.setItem(SES_KEY, id || '__guest__'); box.classList.remove('on'); resolve(id); };
+    $('authGuest').onclick = () => done(null);
+    const go = async () => {
+      const id = $('authId').value.trim().toLowerCase(), pw = $('authPw').value;
+      const err = m => { $('authErr').textContent = m; };
+      if (!/^[a-z0-9_]{3,16}$/.test(id)) return err('아이디는 영문 소문자·숫자·_ 3–16자로 해주세요.');
+      if (pw.length < 4) return err('비밀번호는 4자 이상이어야 해요.');
+      if (mode === 'login') {
+        const acc = accounts[id];
+        if (!acc) return err('이 PC에 없는 아이디예요. 회원가입을 해주세요.');
+        if (await hashPw(pw, acc.salt) !== acc.hash) return err('비밀번호가 틀렸어요.');
+        return done(id);
+      }
+      const nk = $('authNick').value.trim();
+      if (accounts[id]) return err('이미 있는 아이디예요.');
+      if (nk.length < 2 || nk.length > 12) return err('닉네임은 2–12자로 해주세요.');
+      const salt = [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, '0')).join('');
+      accounts[id] = { salt, hash: await hashPw(pw, salt), nick: nk, created: Date.now() };
+      saveAccounts();
+      const guest = localStorage.getItem(GUEST_KEY);
+      if (guest && $('authImport').checked) {
+        const g = JSON.parse(guest); g.nick = nk;
+        localStorage.setItem(GUEST_KEY + ':' + id, JSON.stringify(g));
+        localStorage.removeItem(GUEST_KEY); // moved, not copied
+      }
+      done(id);
+    };
+    $('authGo').onclick = go;
+    [$('authId'), $('authPw'), $('authNick')].forEach(el => el.onkeydown = e => { if (e.key === 'Enter') go(); });
+    setMode(ids.length ? 'login' : 'signup');
+  });
+}
+const USER = await authGate();
+
 // ---------------- save ----------------
-const KEY = 'tlts_save_v1';
+const KEY = USER ? GUEST_KEY + ':' + USER : GUEST_KEY;
 let save = JSON.parse(localStorage.getItem(KEY) || 'null');
 function persist() { localStorage.setItem(KEY, JSON.stringify(save)); }
 if (!save) {
-  save = { coins: 1500, owned: {}, pity: 0, pulls: 0, main: null, nick: '', claimed: [], st: { aiW: 0, aiL: 0, mp: 0, mpWin: 0, earned: 0 } };
+  save = { coins: 1500, owned: {}, pity: 0, pulls: 0, main: null, nick: USER ? accounts[USER].nick : '', claimed: [], st: { aiW: 0, aiL: 0, mp: 0, mpWin: 0, earned: 0 } };
   // three starter animals
   for (let k = 0; k < 3; k++) { const a = SAMPLER.pick(Math.random()); save.owned[a.id] = (save.owned[a.id] || 0) + 1; }
   save.main = +Object.keys(save.owned).sort((x, y) => BY_ID.get(+y).power - BY_ID.get(+x).power)[0];
@@ -50,6 +120,28 @@ function addCoins(n, why) {
   if (why) toast(`${why} 🪙${n > 0 ? '+' : ''}${fmt(n)}`);
 }
 function renderWallet() { $('coins').textContent = fmt(save.coins); }
+if (USER && accounts[USER].nick && save.nick !== accounts[USER].nick) { save.nick = accounts[USER].nick; persist(); }
+const myNick = () => save.nick || (USER ? accounts[USER].nick : '게스트');
+function renderUser() {
+  $('userBtn').innerHTML = `👤 ${esc(myNick())}`;
+  $('userInfo').textContent = USER ? `@${USER} (이 PC에 저장된 계정)` : '게스트 (로그인하지 않음)';
+  $('logout').textContent = USER ? '로그아웃 / 계정 전환' : '로그인 / 회원가입';
+  if ($('mpNick')) $('mpNick').textContent = myNick();
+}
+function changeNick() {
+  const n = prompt('새 닉네임 (2–12자)', myNick());
+  if (n == null) return;
+  const nk = n.trim();
+  if (nk.length < 2 || nk.length > 12) { toast('닉네임은 2–12자로 해주세요'); return; }
+  save.nick = nk; persist();
+  if (USER) { accounts[USER].nick = nk; saveAccounts(); }
+  renderUser(); toast('닉네임 변경: ' + nk);
+  if (room) toast('방에 다시 들어가면 새 닉네임이 표시돼요');
+}
+$('userBtn').onclick = e => { e.stopPropagation(); $('userMenu').classList.toggle('hidden'); };
+document.addEventListener('click', e => { if (!e.target.closest('.user')) $('userMenu').classList.add('hidden'); });
+$('nickChange').onclick = () => { $('userMenu').classList.add('hidden'); changeNick(); };
+$('logout').onclick = () => { localStorage.removeItem(SES_KEY); location.reload(); };
 let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
 
@@ -163,6 +255,7 @@ function refresh() {
   if (current === 'multi') renderMulti();
   if (current === 'types') renderTypes();
   if (current === 'enhance') renderEnhance();
+  if (current === 'fusion') renderFusion();
 }
 
 // ---------------- home ----------------
@@ -304,7 +397,8 @@ async function revealOne(r) {
   const a = r.a, c = CLS[a.cls], t = tierOf(a.power), glow = E.glowOf(a.power);
   const st = $('stage');
   st.className = 'stage ' + glow;
-  $('rPack').classList.toggle('hidden', !r.pack);
+  $('rPack').classList.toggle('hidden', !r.pack && !r.fusion);
+  if (r.fusion) $('rPack').textContent = `🧬 합성 결과! (${r.fusion}글자 이상 보장)`;
   if (r.pack) $('rPack').textContent = `🎁 동물 팩! (${r.packIdx + 1}/${G.packSize})`;
   $('rClass').className = 'r-class'; $('rClass').innerHTML = `<span class="ic">${c.icon}</span><span class="t">${c.ko}</span><span class="e">${c.en.toUpperCase()}</span>`;
   $('rPower').className = 'r-power'; $('rPower').innerHTML = '';
@@ -501,6 +595,84 @@ $('enhGo').onclick = async () => {
   setTimeout(() => { if (!enhBusy) anv.className = 'enh-anvil'; }, 1500);
 };
 
+// ---------------- fusion ----------------
+const FU = E.FUSION;
+let fusGroup = null, fusSel = []; // fusSel: animal ids (one entry per copy)
+$('fusRule').textContent = `같은 분류 동물 ${FU.count}장을 합성하면 그 분류의 동물 1마리가 나와요. 결과는 재료 평균 글자 수 × ${FU.mult} 이상 (올림). 출전 동물의 마지막 1장은 재료로 쓸 수 없고, 마지막 1장을 쓰면 그 동물의 강화도 사라져요.`;
+const GROUP_MAX = {};
+A.forEach(a => { GROUP_MAX[a.cls] = Math.max(GROUP_MAX[a.cls] || 0, a.power); });
+const usable = id => (save.owned[id] || 0) - (save.main === id ? 1 : 0); // copies allowed as material
+function groupCopies(cls) { return ownedList().filter(a => a.cls === cls).reduce((s, a) => s + Math.max(0, usable(a.id)), 0); }
+function renderFusion() {
+  const groups = Object.keys(CLS).filter(k => ownedList().some(a => a.cls === k));
+  if (!fusGroup || !groups.includes(fusGroup)) fusGroup = groups.sort((x, y) => groupCopies(y) - groupCopies(x))[0] || null;
+  $('fusGroup').innerHTML = groups.map(k => `<option value="${k}" ${k === fusGroup ? 'selected' : ''}>${CLS[k].icon} ${CLS[k].ko} — 재료 ${groupCopies(k)}장${groupCopies(k) >= FU.count ? '' : ' (부족)'}</option>`).join('');
+  fusSel = fusSel.filter(id => BY_ID.get(id).cls === fusGroup);
+  // drop selections that exceed what's owned
+  const cnt = {}; fusSel = fusSel.filter(id => (cnt[id] = (cnt[id] || 0) + 1) <= usable(id));
+  // slots
+  $('fusSlots').innerHTML = Array.from({ length: FU.count }, (_, k) => {
+    const id = fusSel[k]; if (id == null) return `<div class="fus-slot empty">${k + 1}</div>`;
+    const a = BY_ID.get(id), t = tierOf(a.power), last = usable(id) + (save.main === id ? 1 : 0) - fusSel.filter(x => x === id).length === 0;
+    return `<div class="fus-slot" data-slot="${k}" style="--tc:${t.color}" title="클릭해서 빼기">
+      <div class="fs-img" ${a.image ? `style="background-image:url('${img(a.image, 200)}')"` : ''}>${a.image ? '' : CLS[a.cls].icon}</div>
+      <div class="fs-name">${esc(a.name)}</div><div class="fs-pow">${a.power}글자</div>
+      ${last && enhOf(id) ? `<div class="fs-warn">강화 +${enhOf(id)} 소멸</div>` : ''}</div>`;
+  }).join('');
+  // preview
+  if (fusSel.length) {
+    const avg = fusSel.reduce((s, id) => s + BY_ID.get(id).power, 0) / fusSel.length;
+    const min = Math.min(E.fusionMin(avg), GROUP_MAX[fusGroup]);
+    const pool = A.filter(a => a.cls === fusGroup && a.power >= min).length;
+    $('fusPreview').innerHTML = `재료 평균 <b>${avg.toFixed(1)}</b>글자 → 결과 <b class="plus">${min}글자 이상</b> ${CLS[fusGroup].icon} ${CLS[fusGroup].ko} <span class="muted small">(후보 ${fmt(pool)}종)</span>` + (fusSel.length < FU.count ? ` <span class="muted small">· ${FU.count - fusSel.length}장 더 필요</span>` : '');
+  } else $('fusPreview').innerHTML = `<span class="muted">재료를 ${FU.count}장 골라주세요.</span>`;
+  $('fusGo').disabled = fusSel.length !== FU.count || revealing;
+  // material grid
+  const mats = ownedList().filter(a => a.cls === fusGroup).sort((x, y) => x.power - y.power || x.name.localeCompare(y.name));
+  $('fusGrid').innerHTML = mats.map(a => {
+    const left = usable(a.id) - fusSel.filter(x => x === a.id).length;
+    return `<div class="fus-mat ${left <= 0 ? 'used' : ''}" data-mat="${a.id}">${cardHTML(a, { noClick: true, hideMain: false })}<div class="fm-left">${left > 0 ? `넣을 수 있음 ${left}장` : save.main === a.id && usable(a.id) <= 0 ? '출전 중' : '모두 넣음'}</div></div>`;
+  }).join('') || '<p class="muted">이 분류의 동물이 없어요.</p>';
+}
+$('fusGroup').onchange = () => { fusGroup = $('fusGroup').value; fusSel = []; renderFusion(); };
+$('fusGrid').onclick = e => {
+  const m = e.target.closest('[data-mat]'); if (!m) return;
+  const id = +m.dataset.mat;
+  if (fusSel.length >= FU.count) { toast(`재료는 ${FU.count}장까지예요`); return; }
+  if (usable(id) - fusSel.filter(x => x === id).length <= 0) return;
+  fusSel.push(id); renderFusion();
+};
+$('fusSlots').onclick = e => { const s = e.target.closest('[data-slot]'); if (s) { fusSel.splice(+s.dataset.slot, 1); renderFusion(); } };
+$('fusClear').onclick = () => { fusSel = []; renderFusion(); };
+$('fusAuto').onclick = () => {
+  fusSel = [];
+  const mats = ownedList().filter(a => a.cls === fusGroup).sort((x, y) => x.power - y.power || (enhOf(x.id) - enhOf(y.id)));
+  for (const a of mats) { let n = usable(a.id); while (n-- > 0 && fusSel.length < FU.count) fusSel.push(a.id); if (fusSel.length >= FU.count) break; }
+  if (fusSel.length < FU.count) toast(`이 분류의 재료가 ${FU.count}장보다 적어요`);
+  renderFusion();
+};
+$('fusGo').onclick = async () => {
+  if (fusSel.length !== FU.count || revealing) return;
+  const cls = fusGroup;
+  const avg = fusSel.reduce((s, id) => s + BY_ID.get(id).power, 0) / FU.count;
+  const min = Math.min(E.fusionMin(avg), GROUP_MAX[cls]);
+  // consume materials
+  for (const id of fusSel) {
+    save.owned[id]--;
+    if (save.owned[id] <= 0) { delete save.owned[id]; delete save.enh[id]; }
+  }
+  const pick = E.sampler(A.filter(a => a.cls === cls && a.power >= min), G.decay).pick(Math.random());
+  const isNew = !owns(pick.id);
+  save.owned[pick.id] = (save.owned[pick.id] || 0) + 1;
+  if (!BY_ID.get(save.main) || !owns(save.main)) save.main = pick.id;
+  persist();
+  fusSel = [];
+  await revealSequence([{ a: pick, isNew, fusion: min }]);
+  if (!isNew) addCoins(G.dupRefund, '중복 환급');
+  emitPick();
+  renderFusion();
+};
+
 // ---------------- type chart ----------------
 $('typeRule').textContent = `상성이 유리하면 주는 피해 ×${E.TYPE_UP}, 불리하면 ×${E.TYPE_DOWN}. 대략 글자 3개 차이만큼의 효과예요 — 이름 길이가 여전히 가장 중요합니다.`;
 let typeView = 'list';
@@ -551,7 +723,7 @@ $('aiLevels').addEventListener('click', async e => {
   while (!BY_POWER[p]) p += p > mp ? -1 : 1;
   const pool = BY_POWER[p].filter(a => a.id !== m.id);
   const foe = (pool.length ? pool : BY_POWER[p])[Math.floor(Math.random() * (pool.length || BY_POWER[p].length))];
-  const res = E.simulate([{ owner: { id: 'me', name: save.nick || '나' }, animal: m, enh: enhOf(m.id) }, { owner: { id: 'ai', name: 'AI ' + lv.ko }, animal: foe }]);
+  const res = E.simulate([{ owner: { id: 'me', name: myNick() }, animal: m, enh: enhOf(m.id) }, { owner: { id: 'ai', name: 'AI ' + lv.ko }, animal: foe }]);
   const win = res.fighters[res.placements[0]].owner.id === 'me';
   const reward = win ? lv.reward : E.AI_LOSE_REWARD;
   const act = await playBattle(res, {
@@ -569,9 +741,8 @@ $('aiLevels').addEventListener('click', async e => {
 // ---------------- multiplayer ----------------
 const socket = window.io ? window.io() : null;
 let room = null, meId = null;
-$('nick').value = save.nick || '';
-$('nick').addEventListener('change', () => { save.nick = $('nick').value.trim().slice(0, 12); persist(); });
-function nick() { save.nick = $('nick').value.trim().slice(0, 12) || save.nick || ('Player' + Math.floor(Math.random() * 900 + 100)); $('nick').value = save.nick; persist(); return save.nick; }
+$('mpNickChange').onclick = changeNick;
+function nick() { if (!save.nick) { save.nick = 'Player' + Math.floor(Math.random() * 900 + 100); persist(); renderUser(); } return save.nick; }
 
 function renderMulti() {
   $('mpOffline').classList.toggle('hidden', !!socket);
@@ -639,5 +810,6 @@ if (socket) {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('modal').classList.remove('on'); } });
+renderUser();
 show('home');
 })();

@@ -14,11 +14,20 @@
     <button data-go="gacha">뽑기</button>
     <button data-go="dex">내 동물</button>
     <button data-go="enhance">강화</button>
+    <button data-go="fusion">합성</button>
     <button data-go="ai">AI 배틀</button>
     <button data-go="multi">멀티플레이</button>
     <button data-go="types">상성표</button>
   </nav>
   <div class="wallet"><span class="coin">🪙</span> <b id="coins">0</b></div>
+  <div class="user">
+    <button class="user-btn" id="userBtn"></button>
+    <div class="user-menu hidden" id="userMenu">
+      <div class="muted small" id="userInfo"></div>
+      <button id="nickChange">닉네임 변경</button>
+      <button id="logout">로그아웃 / 계정 전환</button>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -127,6 +136,30 @@
     </div>
   </section>
 
+  <!-- FUSION -->
+  <section id="fusion" class="screen">
+    <div class="panel fus-top">
+      <div>
+        <h3>합성</h3>
+        <p class="muted small" id="fusRule"></p>
+      </div>
+      <select id="fusGroup"></select>
+    </div>
+    <div class="fus-main">
+      <div class="panel">
+        <div class="fus-slots" id="fusSlots"></div>
+        <div class="fus-preview" id="fusPreview"></div>
+        <div class="fus-btns">
+          <button class="btn ghost" id="fusAuto">약한 동물로 자동 채우기</button>
+          <button class="btn ghost" id="fusClear">비우기</button>
+          <button class="btn big" id="fusGo">🧬 합성하기</button>
+        </div>
+      </div>
+    </div>
+    <h3 class="fus-h">재료 선택 <span class="muted small">(카드를 누르면 1장씩 들어갑니다)</span></h3>
+    <div class="grid" id="fusGrid"></div>
+  </section>
+
   <!-- TYPES -->
   <section id="types" class="screen">
     <div class="panel">
@@ -145,7 +178,7 @@
       <p class="muted">멀티플레이는 서버로 실행해야 합니다: <code>npm start</code> 후 <code>http://localhost:3000</code></p>
     </div>
     <div id="mpEntry" class="panel mp-entry">
-      <label>닉네임 <input id="nick" maxlength="12" placeholder="닉네임"></label>
+      <div class="mp-nick">닉네임 <b id="mpNick"></b> <button class="btn ghost" id="mpNickChange">변경</button></div>
       <div class="mp-actions">
         <button class="btn big" id="createRoom">방 만들기</button>
         <div class="join">
@@ -175,6 +208,23 @@
     </div>
   </section>
 </main>
+
+<!-- login -->
+<div class="overlay auth" id="auth">
+  <div class="panel auth-box">
+    <div class="hero-title auth-title"><span class="l1">THE</span> <span class="l2">LONGER</span> <span class="l1">THE</span> <span class="l3">STRONGER</span></div>
+    <div class="seg auth-tabs" id="authTabs"><button data-t="login" class="on">로그인</button><button data-t="signup">회원가입</button></div>
+    <input id="authId" maxlength="16" placeholder="아이디 (영문·숫자 3–16자)" autocomplete="username">
+    <input id="authPw" type="password" maxlength="64" placeholder="비밀번호 (4자 이상)" autocomplete="current-password">
+    <input id="authNick" class="signup-only hidden" maxlength="12" placeholder="닉네임 (2–12자)">
+    <label class="signup-only hidden auth-import" id="authImportWrap"><input type="checkbox" id="authImport" checked> 이 PC의 게스트 진행 상황(코인·동물)을 새 계정으로 옮기기</label>
+    <button class="btn big" id="authGo">로그인</button>
+    <p class="err" id="authErr"></p>
+    <div class="auth-list" id="authList"></div>
+    <button class="btn ghost" id="authGuest">게스트로 시작</button>
+    <p class="muted small">계정과 진행 상황은 이 PC의 이 브라우저에만 저장돼요. 브라우저 데이터를 지우면 함께 지워집니다.</p>
+  </div>
+</div>
 
 <!-- card detail -->
 <div class="overlay" id="modal"><div class="sheet" id="sheet"></div></div>

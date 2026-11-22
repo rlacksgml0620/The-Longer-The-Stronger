@@ -124,6 +124,11 @@
     return { ok: false, level: drop ? L - 1 : L, dropped: drop, rate };
   }
 
+  // ---------- Fusion ----------
+  // 5 animals of the same group → 1 animal of that group with at least ceil(avg × 1.2) letters
+  const FUSION = { count: 5, mult: 1.2 };
+  const fusionMin = avg => Math.ceil(avg * FUSION.mult);
+
   // ---------- Prizes ----------
   const ROOM_PRIZES = { 1: [0], 2: [200, 50], 3: [300, 120, 40], 4: [400, 200, 100, 30] };
   const AI_LEVELS = [
@@ -178,5 +183,5 @@
     return 'white';
   }
 
-  return { ENHANCE, clampEnh, enhanceTry, TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
+  return { FUSION, fusionMin, ENHANCE, clampEnh, enhanceTry, TYPES, TYPE_UP, TYPE_DOWN, typeMult, rng, newSeed, stats, simulate, ROOM_PRIZES, AI_LEVELS, AI_LOSE_REWARD, GACHA, sampler, odds, glowOf };
 });
